@@ -1,0 +1,14 @@
+Unix.*.Root.DynamicPath:    $(LD_LIBRARY_PATH)
+Unix.*.Root.MacroPath:      $(MY):$(HOME)
+
+Rint.History:               /tmp/$(USER)_RootHist
+
+#Unix.*.Root.Html.SourceDir:  .:src:include
+#Root.Html.Root:              http://root.cern.ch/root/html
+Root.Html.OutputDir:         /tmp/htmldoc/
+
+Gui.Backend: $(ROOTGUI)
+Gui.Factory: $(ROOTGUI)
+#Root.Fitter:                Minuit                      #Minuit and Fumili
+
+#ACLiC.IncludePaths:         -I$(ALICE_ROOT)/include -I$(ALICE_ROOT)/HMPID -I$(ALICE_ROOT)/ANALYSIS

@@ -1,0 +1,1291 @@
+# Login interactive shell: execute /etc/profile then ~/.bash_profile
+# Non-login interactive shell: execute ~/.bashrc only
+# Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
+[ -z "PS1" ] && return						#nothing to do for non interactive shell
+PS1="\!:\W> "							#prompt: 22:dirname>
+
+export PATH="$HOME:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/sbin"
+
+export MY=~/Dropbox/my						#used by ALICE scripts
+export MY_CERN_DIR=$HOME/sw
+export MY_CSCOPE_DIR=/tmp/${USER}_cscope				#tmp dir where cscope stores the output
+export ROOTGUI=native
+export LESSCHARSET="koi8-r"
+export LESSHISTFILE=/tmp/${USER}_LessHist
+export HISTFILE=/tmp/${USER}_BashHist
+export HISTSIZE=5000
+export HISTCONTROL=ignoreboth					#don't add duplicated line and empty space
+#shopt  -s histappend						#append to history file
+export JAVA_HOME=/usr/lib/jvm/java-6-sun/jre
+export TC_INSTALL_DIR=/usr/local/terracotta/current
+export CVS_RSH=ssh
+export X509_USER_CERT=$MY/KirINFN.pem				#certificate used by globus
+export X509_USER_KEY=$MY/KirPrivate.pem				#private key for this certificate
+export SIMPLE_BACKUP_SUFFIX=.kirshil				#used by patch
+export DISTCC_HOSTS='artemis.sw.ru 10.30.23.114 10.0.70.80'	#used by make -j
+export ARTISTIC_STYLE_OPTIONS=$MY/RcAstyle
+export LD_LIBRARY_PATH=$HOME
+alias   a='alias'
+alias	df='df -h'
+alias	dm='dmesg'
+alias	du='du -h'
+alias	e='echo'
+alias	r='root -l'
+alias	k='cd ~/hg/kshileev'
+alias   gr='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+alias   gru='find ~/hg/kshileev ~/Dropbox/ref/shell -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+alias	h='history'
+alias	l='ls -F --color=tty'
+alias	l.='ls -dh .* --color=auto'
+alias	ll='ls -Flih --color=auto'
+alias	ll.='ls -Fldih .* --color=auto'
+alias	ld='ls -lad --color=auto'
+alias	ls='ls --color=auto'
+alias	m='less'
+alias	p="pstree -h"
+alias	pw="ps uxwf"
+alias	src='. ~/.bash_profile'
+alias	sslt='ps auxw |grep ssh |grep -v grep'
+alias	u='cd ..'
+
+function ksNovaEnv
+{
+    echo Current NOVA:
+    echo EC2_URL: $EC2_URL
+    echo S3_URL: $S3_URL
+    echo EC2_USER_ID: $EC2_USER_ID
+    echo EC2_ACCESS_KEY: $EC2_ACCESS_KEY
+    echo EC2_PRIVATE_KEY: $EC2_ACCESS_KEY
+    echo EC2_SECRET_KEY: $EC2_SECRET_KEY
+    echo EC2_CERT: $EC2_CERT
+    echo NOVA_CERT: $NOVA_CERT
+    echo EUCALYPTUS_CERT: $EUCALYPTUS_CERT
+    echo NOVA_API_KEY: $NOVA_API_KEY
+    echo NOVA_USERNAME: $NOVA_USERNAME
+    echo NOVA_URL: $NOVA_URL
+    echo KIR_EC_TOKEN: $KIR_EC_TOKEN
+    echo KIR_OS_TOKEN: $KIR_OS_TOKEN
+}
+
+function ksNovaAuth
+{
+    export KIR_OS_TOKEN=$(curl -D - -H "X-Auth-User:$NOVA_USERNAME" -H "X-Auth-Key: $NOVA_API_KEY" $NOVA_URL 2>/dev/null | grep -e ^X-Auth-Token | awk '{print $2}')
+    echo $KIR_EC_TOKEN
+    echo $KIR_OS_TOKEN
+}
+
+function ksNovaCreateImage
+{
+    mkdir
+}
+
+function ksNova
+{
+    echo Currently available cloud controllers:
+    for cci in 172.16.128.226 cc-cssn dragon004.hw
+    do
+	echo $cci
+    done
+    read -p 'Choose one: ' cc; [ -z "$cc" ] && echo No CC chossen, aborting && return
+
+    echo CC $cc has following projects:
+    ssh root@$cc nova-manage project list 2>/dev/null
+    read -p 'Choose project: ' project; [ -z "$project" ] && echo No project chossen, aborting && return
+
+    echo CC $cc has following user:
+    ssh root@$cc nova-manage user list 2>/dev/null
+    read -p 'Choose user: ' user; [ -z "$user" ] && echo No user chossen, aborting && return
+
+    mkdir -p $HOME/$cc
+    rm -rf $HOME/$cc/*
+    ssh root@$cc nova-manage project zip $project $user /tmp/$USER.creds.zip 2>/dev/null
+    scp root@$cc:/tmp/$USER.creds.zip $HOME/$cc
+    unzip -d $HOME/$cc $HOME/$cc/$USER.creds.zip   
+    . $HOME/$cc/novarc
+    unset KIR_EC_TOKEN
+    unset KIR_OS_TOKEN
+    ksNovaEnv
+}
+
+function ksNovaTunnels
+{
+    ssh -f -N -L 22222:n2:22 root@gc-d
+    ssh -f -N -L 28774:n2:8774 root@gc-d
+    ssh -f -N -L 33333:n3:22 root@gc-d
+}
+
+WaasSocketFile="/tmp/WAAS"
+WaasTunelPort="11111"
+WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
+WaasTbMsk1Edge='172.18.6.40'
+WaasTbMsk1Core='172.18.6.41'
+
+function ksWaasGoTbMsk1
+{
+    rdesktop -u Administrator -p watchThis -T Client.SMB2.172.18.7.36 -g 1024x768 172.18.7.36  & #Win client
+    rdesktop -u Administrator -p watchThis -T Server.SMB2.172.18.7.56 -g 1024x768 172.18.7.56  & #Win server
+#    xterm -geometry 130x36+600+10  -bg grey        -fg black -title CIFSBM   -e ssh kshileev@172.18.7.39 &
+
+    xterm -geometry 135x36+1600+10 -bg steelblue -fg black -title "EDGE <conf log disk pri det> <deb acc smb all>" -e sshpass -p default ssh admin@172.18.6.40 &
+    xterm -geometry 135x36-900-10  -bg lightblue -fg black -title "EDGE-DBG <sh stat conn> <sh log> <sh deb>"      -e sshpass -p default ssh admin@172.18.6.40 &
+
+    xterm -geometry 135x36-5+10 -bg lightyellow  -fg black -title "CORE conf <(no) acc smb ena> <sh stat acc smb>"           -e sshpass -p default ssh admin@172.18.6.41 &
+    xterm -geometry 135x36-5-10 -bg greenyellow  -fg black -title "CORE-DBG zzdebugshell default d0ntG0" -e sshpass -p default ssh admin@172.18.6.41 &
+}
+
+function ksWaasGoTbPod9
+{
+    local ClientPort=22131
+    local ServerPort=22134
+    local ClientIp=172.23.142.133
+    local ServerIp=172.23.142.138
+    local EdgeIp=2.75.57.162
+    local CoreIp=2.75.57.34
+
+    ssh -N -f -L $ClientPort:$ClientIp:3389 kshileev@xe-kite.cisco.com
+    ssh -N -f -L $ServerPort:$ServerIp:3389 kshileev@xe-kite.cisco.com
+    rdesktop -u Administrator -p watchThis  -T WinServer -g 1024x768 localhost:$ClientPort  &
+    rdesktop -u Administrator -p watchThis  -T WinClient -g 1024x768 localhost:$ServerPort  &
+
+
+    xterm -geometry 140x36+1600+10 -bg steelblue -fg black -title "EDGE conf log disk pri not" -e ssh -S $WaasSocketFile kshileev@localhost telnet $EdgeIp &
+    xterm -geometry 140x36-900-10  -bg lightblue -fg black -title "EDGE-DBG sh conn stat" -e ssh -S $WaasSocketFile kshileev@localhost telnet $EdgeIp &
+
+    xterm -geometry 130x36-5+10 -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S $WaasSocketFile kshileev@localhost telnet $CoreIp &
+    xterm -geometry 130x36-5-10 -bg black         -fg white -title LOCAL &
+}
+function ksNovaTerm
+{
+    gnome-terminal --hide-menubar --geometry=100x25+10+15 --title="local"
+    gnome-terminal --hide-menubar --geometry=100x25+1000+15 --title="cc-cssn" --command="ssh -Y root@cc-cssn" 
+    gnome-terminal --hide-menubar --geometry=100x25+1000+500 --title="libcloud log" --command="tail -f $HOME/libcloud.log"
+   #gnome-terminal --hide-menubar --geometry=100x25-1550+500 --title="JE 2" --command="ssh -Y root@je-cssn" &
+}
+function ksWaasGoBld
+{
+    WaasSocket
+    ssh -S $WaasSocketFile kshileev@localhost
+    #gnome-terminal --hide-menubar --window -e "ssh -p 11111 kshileev@localhost" --tab --tab
+}
+function WaasSocket
+{
+    if [ ! -S $WaasSocketFile ]; then
+	echo "Creating file_socket to Cisco BLD server..."
+	ssh -f -N -L $WaasTunelPort:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
+	ssh -f -N -p $WaasTunelPort kshileev@localhost -M -S $WaasSocketFile
+    fi
+}
+
+WaasExcludeList="--exclude=CiscoInclude --exclude=ExternalMock.cpp --exclude=utils --exclude=.CC --exclude=.ACME --exclude=.#* --exclude=*.da --exclude=*.bb* --exclude=.hg* --exclude=.*project --exclude=Ut --exclude=Dbg --exclude=Lib --exclude=mock --exclude=gui --exclude=uml --exclude=.settings --exclude=Makefile* --exclude=Doxy-* --exclude=*.bm"
+
+function ksWaasSyncDown
+{
+    if [ -d src -a -d ut -a -d include ]; then
+	WaasSocket #establish tunnel to CISCO network
+	local From=$WaasRemoteDir/ao/smb/
+	echo "Syncing down CISCO->LOCAL  from $From to .:"
+	rsync -avz -e "ssh -S $WaasSocketFile" $WaasExcludeList --delete $From .
+	echo "Finished."
+    else
+	echo  "Current directory must contain <include> <src> <ut>, aborting."
+    fi
+}
+function ksWaasSyncUp
+{
+    if [ -d src -a -d ut -a -d include ]; then
+	WaasSocket #establish tunnel to CISCO network
+        local To=$WaasRemoteDir/ao/smb
+	echo "Doing LOCAL->WAAS from . to $To:"
+        rsync -avz -e "ssh -S $WaasSocketFile" $WaasExcludeList --delete . $To
+	echo "Finished."
+    else
+	echo "Current directory must contain <include> <src> <ut>, aborting."
+    fi
+}
+function ksWaasGetRef
+{
+    WaasSocket #establish tunnel to CISCO network
+    local Shell=$WaasRemoteDir/ao/shell
+    local Doc=$WaasRemoteDir/derived/doc
+    echo "$Shell -> .:"
+    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete $Shell .
+    echo "$Doc -> .:"
+    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete $Doc .
+    echo "Finished."
+}
+function ksWaasDeploySmb
+{
+    WaasSocket
+    #local Dir=`mktemp -p /tmp -d WaasDeploySmb.XXXXXXXXXX`
+    local Dir=/tmp/WaasSmbDeploy
+    mkdir -p $Dir
+
+    echo "Getting SMBAO executables $WaasRemoteDir ->  $Dir:"
+    rsync -az -e "ssh -S $WaasSocketFile" $WaasRemoteDir/derived/unicorn/bin/smbao $Dir
+    rsync -az -e "ssh -S $WaasSocketFile" $WaasRemoteDir/derived/unicorn/lib/libsmbao.so $Dir
+    rsync -az -e "ssh -S $WaasSocketFile" $WaasRemoteDir/x86_64-derived/unicorn/bin/smbao $Dir/smbao64
+    rsync -az -e "ssh -S $WaasSocketFile" $WaasRemoteDir/x86_64-derived/unicorn/lib/libsmbao.so $Dir/libsmbao64.so
+    cat >  $Dir/deploy_smb <<EOF
+
+function Deploy
+{
+    local Main=\$PWD
+    local AfterRuby="/sw/unicorn/which.variant"
+    local Variant
+
+    ls -d /local/local1/kshileev/*/
+    read -p 'Choose variant: ' Variant
+    [ -z \$Variant ] && echo Nothing choosen, exiting && return
+
+    mount -o remount,rw /sw
+
+    if [ ! -f \$AfterRuby ]; then
+	echo "Running first time after ruby redeployment, saving ruby variant"
+        mkdir -p \$Main/ruby
+        cp /sw/unicorn/bin/smbao64 \$Main/ruby/smbao64
+        cp /sw/unicorn/bin/smbao   \$Main/ruby/smbao
+        cp /sw/unicorn/lib/libsmbao.so   \$Main/ruby/libsmbao.so
+        cp /sw/unicorn/lib64/libsmbao.so   \$Main/ruby/libsmbao64.so
+    fi
+
+    echo Deploying \$Variant
+    cp \$Variant/smbao         /sw/unicorn/bin/smbao64
+    cp \$Variant/libsmbao.so   /sw/unicorn/lib/libsmbao.so
+    cp \$Variant/libsmbao64.so /sw/unicorn/lib64/libsmbao.so
+    echo \$Variant > \$AfterRuby
+}
+
+Deploy
+tail -f ~/errorlog/smbao-errorlog.current
+EOF
+    cat > $Dir/ps1 <<EOF
+export PS1="\!:\W> "
+alias k='cd /local/local1/kshileev'
+alias v='cat /sw/unicorn/which.variant'
+EOF
+    chmod +x $Dir/deploy_smb
+    echo Deploying on edge $WaasTbMsk1Edge ....
+    sshpass -p default ssh admin@$WaasTbMsk1Edge mkdir kshileev
+    sshpass -p default ssh admin@$WaasTbMsk1Edge mkdir kshileev/fromBld
+    sshpass -p default scp $Dir/*smbao* admin@$WaasTbMsk1Edge:kshileev/fromBld
+    sshpass -p default scp $Dir/deploy_smb admin@$WaasTbMsk1Edge:kshileev/
+    sshpass -p default scp $Dir/ps1 admin@$WaasTbMsk1Edge:kshileev/
+    echo Deploying on core $WaasTbMsk1Core ....
+    sshpass -p default ssh admin@$WaasTbMsk1Core mkdir kshileev
+    sshpass -p default ssh admin@$WaasTbMsk1Core mkdir kshileev/fromBld
+    sshpass -p default scp $Dir/*smbao* admin@$WaasTbMsk1Core:kshileev/fromBld
+    sshpass -p default scp $Dir/deploy_smb admin@$WaasTbMsk1Core:kshileev/
+    sshpass -p default scp $Dir/ps1 admin@$WaasTbMsk1Core:kshileev/
+    rm -rf $Dir
+    echo "Finished."
+}
+
+function ksWaasDeployRuby
+{
+    WaasSocket
+    local RubyName=ruby.$(date +%Y-%m-%d)
+    echo "Getting $RubyName:"
+    scp -P $WaasTunelPort $WaasRemoteDir/derived/ruby.bin /var/www/$RubyName
+    echo "Executing EDGE reload" && sshpass -p default ssh admin@edge copy http install kshileev-lnx / $RubyName
+    sshpass -p default ssh admin@edge reload force
+    echo "Executing CORE reload" && sshpass -p default ssh admin@core copy http install kshileev-lnx / $RubyName
+    sshpass -p default ssh admin@core reload force
+}
+
+
+function ksWaasRunCifsBm
+{
+    local File Description Script
+    cd ~
+    if [ -z $1 ]; then
+	for File in `ls ~/*.bm`; do
+	    Description=`head -1 $File`
+	    echo $File $Description
+	done
+	read -p "Choose script: " Script
+	[ -z $Script ] && echo Script is not choosen && return
+    else
+	Script=$1
+    fi
+
+    cifs_bm -c $Script `grep % $Script | cut -b2-`
+    cd -
+}
+function ksHgRepo
+{
+    WaasSocket
+    local Dir=~/mercurial
+    if [ ! -d $Dir ]; then
+        echo "Clone Mercurial WaaS repo to $Dir: (Provide GD LDAP credetianls)"
+        hg clone http://cisco-mercurial.griddynamics.net/hg/SMB_AO_Prototypes $Dir
+        cat > $Dir/.hg/hgrc <<EOF
+[paths]
+default = ssh://kshileev@localhost:11111//work/gdemchen/smbao
+[ui]
+username = Kirill Shileev<kshileev@cisco.com>
+EOF
+    else
+        echo Mercurial repo is already cloned to $Dir
+    fi
+}
+function automount
+{
+	echo $1
+	#alias   0auoff='gconftool-2 -t bool -s /apps/nautilus/preferences/media_automount false'
+	#alias   0auon='gconftool-2 -t bool -s /apps/nautilus/preferences/media_automount true'
+}
+function ksRepo
+{
+    echo I know the follifing repositories:
+    echo
+    echo github kshileev libcloud    
+    echo gtihub kshileev nova-tests
+    echo GD svn goldfish
+    echo GD svn azurehpc
+    echo GD svn masys 
+    echo Paralles git ovzctl
+    echo Paralles git ovzkernel
+    echo
+
+    read -p 'Choose repo: ' repo
+    case $repo in 
+	libcloud|nova-tests) echo Not yet implemented!	    ;;
+	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;    
+	azurehpc) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/azurehpc  ;;    
+	masys) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/macys/trunk  ;;
+	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
+	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
+	*)  echo No repo choosen, nothing to do! ;;
+    esac	
+}
+function ksInitrd
+{
+    echo Operations with INITRD: 
+    echo 1. unzip into current dir
+    echo 2. zip current dir into ~/initrd-$USER.img
+    # read -p gzip -dc | cpio -i > .
+    #find . | cpio -co --quiet | gzip -c > ~/initrd.img'
+    ls *initrd* /boot/initrd*
+    read -p "Choose initrd image: " IrdName ; [ -z "$IrdName" ] && exit
+    rm -rf $HOME/ird
+    mkdir -p $HOME/ird
+    cp $IrdName $HOME/ird/tmp-initrd
+    cd $HOME/ird
+    gzip -dc tmp-initrd | cpio -id
+    rm tmp-initrd
+}
+
+#alias   k2w="recode koi8..CP1251 ~/txt"
+#alias   kk="consolechars --acm koi8-r --font UniCyr_8x16"
+#alias   kw="consolechars --acm cp1251 --font UniCyr_8x16"
+#alias   kd="consolechars --acm cp866 --font UniCyr_8x16"
+
+
+function ksBootOnce
+{
+    echo Configure grub to boot just once
+    echo "savedefault --default=0 --once" |grub
+}
+function ksCscope
+{
+    echo Preparing CSCOPE to browse in $PWD
+    mkdir -p $MY_CSCOPE_DIR
+    local File=$MY_CSCOPE_DIR/cscope.files
+    find $PWD -name "*.[ch]" -o -name "*.[ch]pp" | grep -v ut/ | grep -v utils/ > $File
+    #find $HOME/Dropbox/ref/shell -name "*.[ch]" | grep -v "test/"  >> $File
+    cd $MY_CSCOPE
+    cscope -b -q -k
+    cd -
+}
+function ksRusTerm
+{
+    echo Open specialized terminals
+    #alias   0xk='xterm -fn -misc-fixed-medium-r-normal--14-130-75-75-c-70-koi8-r&'
+    #alias   0xw='xterm -fn -urw-courier-medium-r-normal--0-0-0-0-m-0-microsoft-cp1251'
+}
+
+function ksDefineDiff
+{
+	echo Defines aliases to work with diff-patch
+	echo pt di ki
+	alias   pt='patch -p1 -b -z .kshileev'
+	alias   di='gendiff . .kshileev > ~/kshileev.diff-xx-xxxx-`date +%Y%m%d`'
+	alias   ki='find . -name *.kshileev'
+}
+
+function ksDefineMake
+{
+    echo $1
+    #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
+    #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
+}
+
+function ksRpmBld
+{
+    echo $1
+#alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
+#alias   0RpmBld64='rpmbuild --nodeps --target=x86_64 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
+#alias   0RpmBld='rpmbuild --define "_sourcedir $PWD" --define "_builddir $PWD" --define "_rpmdir $HOME"'
+}
+
+function ksKirGrep
+{
+    [ -z "$1" ] && echo Usage $FUNCNAME symbol || echo $1 a\is in :
+    find . -name *.[ch]pp | xargs grep $1
+}
+
+function go
+{
+    echo Where do you whant to go?
+    echo -e "1-tunnel to adbu-bldsrv-03 through xe-kite\t2-adbu-bldsrv-03\t3-\t4-"
+    echo -e "5-\t6-\t7-\t8\t"
+}
+
+function ksSizeOf
+{
+	if [ "$#" == "0" ]; then
+		echo Usage: $0 c1i1
+		return
+	fi
+
+
+	for c in $1 ;  do
+		echo $c
+	done
+
+	Class="class Class{char c; int i;};" #
+
+	TmpFile=$(mktemp -u).c++ #tmp file of type /tmp/tmp.XXXXXXXX.c++ -u: don't create it (unsafe)
+	TmpBin=${TmpFile/c++/exe}
+
+	cat > $TmpFile <<EOF
+#include <iostream>
+using namespace std;
+
+$Class
+
+int main()
+{
+	Class obj;
+	cout<<"$Class CLS="<<sizeof(Class)<<" obj="<<sizeof(obj)<<endl;
+	return 0;
+}
+EOF
+
+	g++ $TmpFile -o $TmpBin
+	echo Platform `uname -m`
+	$TmpBin
+	rm $TmpFile $TmpBin
+}
+
+function ksOvz
+{
+    echo $1
+#alias   0vztc='echo "BASE<<4+1"; cat /var/run/vz_tc_base; cat /var/run/vz_tc_classes; tc filter show dev eth0 parent 2:'
+#alias   0vzl='vzlist -a -o ctid,hostname,ip,numproc,ostemplate'
+#alias   0vzst='vzctl set 101 --hostname changename '
+}
+
+function ksDhcpd
+{
+	[ -f /etc/dhcpd.conf ] && ConfFile=/etc/dhcpd.conf
+	cat > $ConfFile << EOF
+authoritative;
+option domain-name "barracuda";
+option domain-name-servers 192.168.4.1;
+
+subnet 10.0.0.0 netmask 255.255.255.0 {
+  option routers  10.0.0.1;
+
+  pool {
+    range dynamic-bootp  10.0.0.20 10.0.0.250;
+    default-lease-time 86400;
+    max-lease-time 86400;
+  }
+
+  next-server 10.0.0.10;
+  filename "pxelinux.0";
+}
+EOF 
+}
+
+function ksGenClass
+{
+	read -p "Class name [KirClass]: " Class; [ -z "$Class" ] && Class='KirClass'
+	read -p "Base class  [KirBase]: " Base ; [ -z "$Base" ] && Base='KirBase'
+	read -p "C++ extension   [.cc]: " Ext  ; [ -z "$Ext" ] && Ext='.cc'
+	File=$Class$Ext 
+	Header=$Class.h
+
+	cat > $Header <<EOF
+#ifndef ${Class}_h"
+#define ${Class}_h"
+
+#include <$Base.h>
+
+class $Class : public $Base
+{            
+public:    
+    $Class();
+   ~$Class();
+protected:
+  ClassDef($Class,0)
+};//class $Class
+#endif//${Class}_h
+EOF
+
+	cat > $File << EOF
+#include \"$Header\""             >>$File;                       echo >>$File
+ClassImp($Class)"                 >>$File;                       echo >>$File
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" >>$File
+$Class::$Class()"                 >>$File
+{//ctor
+  PrintDebugStart(\"ctor\");"     >>$File
+  PrintDebugStop(\"ctor\");"      >>$File
+  return;"                        >>$File
+}
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+$Class::~$Class()
+{//dtor
+  PrintDebugStart("dtor");
+  PrintDebugStop("dtor");
+  return;
+}
+EOF 
+}
+
+function ksFileInfo
+{
+    echo Information about $1
+    local aaa=$(whereis $1)
+    echo $aaa
+    for literal in $aaa ; do
+	[ x$literal == x$1 ] && continue
+	echo $literal
+    done
+}
+
+function PingNode
+{
+   ping -c 1 $1 > /dev/null 2>&1
+   [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
+}
+
+function ksDeploy
+{
+    grep -v ^127 /etc/hosts | grep ^[1-2]
+    local Node=cifsbm
+    read -p "Where to deploy to HOST [$Node]: " Node; [ -z $Node ] && Node=cifsbm
+    echo Deploing to $Node:
+    scp -p ~/.bashrc ~/.bash_profile ~/.vimrc kshileev@$Node:
+}
+
+function ksGo
+{
+    Hosts='10.0.0.10 10.0.0.20'
+    Files=`ls ~/my/Kir*`
+    echo $Files
+    for i in $Hosts; do
+	echo Host $i
+    done
+    alias   goc='ssh -X -2 kir@lxplus.cern.ch'
+    alias   goi='ssh -X -2 kir@al20.inr.ru'
+    alias   0gos='sshpass -p girl:click.bravo ssh -R 7777:localhost:22 russup@support.swsoft'
+    alias   0gred='sshpass -p 1q2w3e ssh kir@red.dragon.gdc.mirantis.sar'
+    alias   0gblu='sshpass -p 1q2w3e ssh kir@blue.dragon.gdc.mirantis.sar'
+}
+function ksPasswords
+{
+    echo Operations with p12 and pem public-private pairs
+    ls $HOME/.ssh/*
+    read -p " Public  key: " Public  ; [ -z "$Public"  ] && return
+    read -p " Private key: " Private ; [ -z "$Private" ] && return
+
+    local out1=$(openssl rsa -in $Private -noout -modulus)
+    local out2=$(openssl x509 -in $Public -noout -modulus)
+    echo $iPublic and $Private
+    [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
+    #alias   0p12pub="openssl pkcs12 -clcerts -nokeys -in KirINFN.p12 -out KirINFN.pem"
+    #alias   0p12pri="openssl pkcs12 -nocerts -in KirINFN.p12 -out KirPrivate.pem"
+}
+function AliceBuild
+{
+unset ROOTSYS ALICE ALICE_ROOT ALICE_TARGET LD_LIBRARY_PATH LIB_MY LIB_ALICE LIB_ROOT
+
+echo -e "\n\n\n              Installs everything needed to run AliRoot \n"
+
+#install and build dirs
+read -p "Enter the EXISTING dir for installation[$HOME/sw]:" DirInst;   [ "$DirInst"  = "" ] && DirInst=$HOME/sw
+read -p "Enter EXISTING dir for building[$HOME/bld]:"        DirBuild ; [ "$DirBuild" = "" ] && DirBuild=$HOME/bld
+
+$(touch $DirInst/alice/new > /dev/null 2>&1) || { echo "AliceBuild> You are not allowed to write to $DirInst/alice/"; exit 1; }
+$(touch $DirInst/root/new > /dev/null 2>&1)  || { echo "AliceBuild> You are not allowed to write to $DirInst/root/";  exit 1; }
+$(touch $DirBuild/new > /dev/null 2>&1)      || { echo "AliceBuild> You are not allowed to write to $DirBuild/";      exit 1; }
+rm $DirInst/alice/new $DirInst/root/new $DirBuild/new
+
+#ask for versions to be installed
+read -p "Enter the version of AliRoot[head]:"  VerAlice             ; [ "$VerAlice" = "" ] && VerAlice=head
+read -p "Enter the version of Geant3[head]:"   VerG3                ; [ "$VerG3"    = "" ] &&    VerG3=head
+read -p "Enter the version of Root[head]:"     VerRoot              ; [ "$VerRoot"  = "" ] &&  VerRoot=head
+read -p "Enter the version of Alien[v2-11]:"   VerAlien             ; [ "$VerAlien" = "" ] && VerAlien=v2-11
+read -p "Enter the compiler[gcc]:"             Compiler             ; [ "$Compiler" = "" ] && Compiler=gcc
+read -p "Keep the full build tree?[NO]:"       KeepTree
+
+#construct tag options for cvs
+[ "$VerRoot"  = "head" ] &&  RootTag="" ||  RootTag="-r $VerRoot"
+[ "$VerG3"    = "head" ] &&    G3Tag="" ||    G3Tag="-r $VerG3"
+[ "$VerAlice" = "head" ] && AliceTag="" || AliceTag="-r $VerAlice"
+
+#construct directories where to build
+DirBuildAlice=$DirBuild/a_${VerAlice}
+   DirBuildG3=$DirBuild/g_${VerG3}
+ DirBuildRoot=$DirBuild/r_${VerRoot}
+#construct destination directories
+[ "$VerAlice" = "head" ] && VerAlice=`date +%b%d`   #if head replace by current date
+[ "$VerRoot"  = "head" ] &&  VerRoot=`date +%b%d`   #if head replace by current date
+DirAlice=$DirInst/alice/${VerAlice}_r${VerRoot}_$Compiler
+ DirRoot=$DirInst/root/${VerRoot}_$Compiler
+DirAlien=$DirInst/alien/${VerAlien}
+  DirLib=$DirInst/lib
+
+[ "$Compiler" = "gcc" ] && RootCompiler=linux || RootCompiler=linuxicc #this is for ROOT configure script
+
+
+#print what will be done
+echo "You are installing: ALICE-> $DirAlice  ROOT-> $DirRoot"
+echo "You are building:   ALICE-> $DirBuildAlice  ROOT-> $DirBuildRoot Geant-> $DirBuildG3"
+
+
+#ask user if all the info provided is correct
+read -p "IS THE ABOVE CORRECT?[Yes]:" IsCorrect; [ "$IsCorrect" = "" ] && IsCorrect=Yes
+if [ "$IsCorrect" != "Yes" ]; then
+	echo "OK, some input wrong, exiting"
+        exit 1
+fi
+
+
+echo;echo
+
+
+rm -f $HOME/.cvspass
+echo ":pserver:cvs@alisoft.cern.ch:/soft/cvsroot Ah<Z" > $HOME/.cvspass
+echo ":pserver:cvs@root.cern.ch:/user/cvs Ah<Z"       >> $HOME/.cvspass
+
+cd $DirBuild
+
+
+if [ ! -x $DirRoot/bin/root.exe ]; then       #first we build and install root if it's not yet installed
+        echo "Checking out ROOT $RootTag..."
+        time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@root.cern.ch:/user/cvs co $RootTag -d `basename $DirBuildRoot` root
+        echo
+	cd $DirBuildRoot
+        echo "Configuring ROOT $RootTag..."
+	time -f "takes %E seconds" ./configure $RootCompiler --with-pythia6-uscore=SINGLE --enable-qt  --disable-pgsql  >Log
+        echo
+        echo "Building ROOT $RootTag..."
+	time -f "takes %E seconds" make >>Log 2>&1 || { echo "AliceBuild> ROOT building failed, check $DirBuildRoot/Log"; exit 1; }
+
+        mkdir -p $DirRoot
+        mv $DirBuildRoot/bin     $DirRoot
+        mv $DirBuildRoot/cint    $DirRoot
+        mv $DirBuildRoot/etc     $DirRoot
+        mv $DirBuildRoot/fonts   $DirRoot
+        mv $DirBuildRoot/icons   $DirRoot
+        mv $DirBuildRoot/include $DirRoot
+        mv $DirBuildRoot/lib     $DirRoot
+else
+	echo "ROOT version \"$VerRoot\" is already installed";echo
+fi
+
+export ROOTSYS=$DirRoot                                   #prepare root environment
+export PATH=$ROOTSYS/bin:/bin:/usr/bin:/usr/local/bin
+export LD_LIBRARY_PATH=$ROOTSYS/lib
+
+cd $DirBuild
+
+echo "Checking out G3 $G3Tag :"
+time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@root.cern.ch:/user/cvs             co $G3Tag    -d `basename $DirBuildG3`     geant3
+echo
+echo "Checking out AliRoot $AliceTag :"
+time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@alisoft.cern.ch:/soft/cvsroot      co $AliceTag -d `basename $DirBuildAlice`  AliRoot
+echo
+
+rm $HOME/.cvspass
+
+cd $DirBuildG3
+[ -f WithRoot_${VerRoot} ] || { echo Cleaning G3 to build with new ROOT; make clean >/dev/null 2>&1; }      #clean for new ROOT
+echo "Building G3..."
+$(time make > Log 2>&1) || { echo AliceBuild> G3 building failed, see $DirBuildG3/Log; exit 1; }  #build G3 with current ROOT
+echo ^^^ Time used for building G3 ^^^;echo
+touch WithRoot_${VerRoot}
+
+
+export ALICE_ROOT=$DirBuildAlice
+export ALICE_TARGET=`root-config --arch`
+cd $DirBuildAlice
+[ -f WithRoot_${VerRoot} ] || { echo "Cleaning AliROOT to build with new ROOT"; make clean-all >/dev/null 2>&1; } #clean for new ROOT
+echo "Building aliroot..."
+mkdir -p $DirBuildAlice/include
+cp $DirBuildG3/TGeant3/TGeant3.h $DirBuildAlice/include            #TGeant3.h included by ITS,so copy it to AliRoot before building
+$(time make >Log 2>&1) || { echo "AliceBuild> AliROOT building failed, check $DirBuildAlice/Log"; exit 1; }   #build AliRoot
+echo ^^^ Time used for building AliROOT ^^^;echo
+touch WithRoot_${VerRoot}                                         #indicate ROOT version which was used to build AliRoot
+
+echo "Build libSHUTTLE..."
+gmake all-SHUTTLE >>Log 2>&1
+
+echo "Build libTestShuttle..."
+cd $DirBuildAlice/SHUTTLE/TestShuttle
+gmake >>Log 2>&1
+
+rm -rf $DirAlice                                                                         #remove previous installation if exists
+
+if [ -z $KeepTree ]; then
+  echo "Coping all needed soft to installation dir"
+
+  mkdir -p $DirAlice                                                                       #create new ALICE_ROOT directory
+
+
+                        cp -r $DirBuildAlice/include                 $DirAlice              #headers
+                        cp -r $DirBuildAlice/data                    $DirAlice              #galice.cuts etx
+
+mkdir -p $DirAlice/bin; cp    $DirBuildAlice/bin/tgt_$ALICE_TARGET/* $DirAlice/bin          #executables
+mkdir -p $DirAlice/lib; cp    $DirBuildAlice/lib/tgt_$ALICE_TARGET/* $DirAlice/lib          #AliRoot libraries
+                        cp    $DirBuildG3/lib/tgt_$ALICE_TARGET/*    $DirAlice/lib          #geant3 library
+                        cp    $DirBuildAlice/SHUTTLE/TestShuttle/*.so $DirAlice/lib         #libTestShuttle library
+
+mkdir $DirAlice/STEER;  cp    $DirBuildAlice/STEER/*.cxx             $DirAlice/STEER        #STEER .cxx
+                        cp    $DirBuildAlice/STEER/*.h               $DirAlice/STEER        #STEER .h
+
+mkdir $DirAlice/ITS;    cp -r $DirBuildAlice/ITS/Calib               $DirAlice/ITS          #ITS CDB
+                        cp -r $DirBuildAlice/ITS/Align               $DirAlice/ITS          #ITS Align
+
+mkdir $DirAlice/TPC;    cp    $DirBuildAlice/TPC/*.root              $DirAlice/TPC          #TPC config files
+                        cp -r $DirBuildAlice/TPC/Calib               $DirAlice/TPC          #TPC CDB
+                        cp -r $DirBuildAlice/TPC/Align               $DirAlice/TPC          #TPC Align
+
+mkdir $DirAlice/TRD;    cp -r $DirBuildAlice/TRD/Calib               $DirAlice/TRD          #TRD CDB
+                        cp -r $DirBuildAlice/TRD/Align               $DirAlice/TRD          #TRD Align
+
+mkdir $DirAlice/TOF;    cp -r $DirBuildAlice/TOF/CDB                 $DirAlice/TOF          #TOF CDB
+                        cp -r $DirBuildAlice/TOF/Align               $DirAlice/TOF          #TOF Align
+
+                        cp -r  $DirBuildAlice/EVE                    $DirAlice              #EVE all
+                        rm -rf $DirAlice/EVE/tgt_*
+
+                        cp -r  $DirBuildAlice/HMPID                  $DirAlice              #HMPID all
+                        rm -rf $DirAlice/HMPID/tgt_*
+                        cp -r  $DirBuildAlice/PWG2                   $DirAlice
+
+else
+  echo Coping all build tree...
+  cp -r $DirBuildAlice $DirAlice
+  mv $DirAlice/bin/tgt_$ALICE_TARGET/* $DirAlice/bin ; rm -rf $DirAlice/bin/tgt_$ALICE_TARGET
+  mv $DirAlice/lib/tgt_$ALICE_TARGET/* $DirAlice/lib ; rm -rf $DirAlice/lib/tgt_$ALICE_TARGET
+  cp $DirBuildG3/lib/tgt_$ALICE_TARGET/*    $DirAlice/lib          #geant3 library
+  cp $DirBuildAlice/SHUTTLE/TestShuttle/*.so $DirAlice/lib
+fi
+
+echo $DirBuildAlice > $DirAlice/WhereBuild                                               #file to be used by AliceStatus 
+
+cd $DirAlice/bin
+#create b shell script to start batch processes
+cat > b <<EOF
+if [ -z \$1 ]; then
+   echo "Usage: b Nevents [Debug] [ConfigFile]"
+   exit
+fi
+
+if [ -z \$2 ]; then
+   Debug=0
+else
+   Debug=1
+fi
+
+if [ -z \$3 ]; then
+   ConfigFile=\$(pwd)/Config.C
+else
+   ConfigFile=\$3
+fi
+
+Log=Log.\`basename \$ConfigFile\`
+
+Hbatch="\$(pwd)/Hbatch.C(\$1,\$Debug,\"\$ConfigFile\")"
+
+echo Process \$1 event from \$ConfigFile  Debug=\$Debug, log to \$Log
+nohup \$ALICE_ROOT/bin/aliroot -n -b -q \$Hbatch > \$Log  2>&1 &
+EOF
+
+chmod +x b
+#end of creation of b 
+
+echo;echo;echo
+echo "AliceBuild>        OK. OK. OK."
+}
+
+function AliceConf
+{
+    if [ $# == "0" ]; then # print help message
+        echo "Configure AliRoot-Root-Geant3-Alien chain, USAGE:"
+        echo "AliceConf /dir AliceVer RootVer"
+        echo "AliceConf /dir AlienVer"
+        echo
+        echo "---AliRoot version(s) currently available:---"
+    [ -d $MY_CERN_DIR ] && (echo In $MY_CERN_DIR/alice: ;ls $MY_CERN_DIR/alice)
+        echo "---Root    version(s) currently available:---"
+    [ -d $MY_CERN_DIR ] && (echo In $MY_CERN_DIR/root: ;ls $MY_CERN_DIR/root)
+        echo
+        echo "---Current                  configuration:---"
+    [ -x $ROOTSYS/bin/root-config ] && echo "ROOTSYS     --->$ROOTSYS version `$ROOTSYS/bin/root-config --version`" \
+                                || echo "ROOTSYS     --->$ROOTSYS"
+        echo "ROOTGUI     --->$ROOTGUI"
+        echo "ALICE_ROOT  --->$ALICE_ROOT"
+        echo "ALICE_TARGET--->$ALICE_TARGET"
+        echo
+        echo "PATH        --->$PATH"
+        echo "MY_PATH     --->$MY_PATH"
+        echo
+        echo "LD_LIB_PATH --->$LD_LIBRARY_PATH"
+        echo "LIB0        --->$LIB0"
+        echo
+        echo "ALIEN_ROOT  --->$ALIEN_ROOT"
+        echo "GSHELL      --->$GSHELL_ROOT"
+        echo "GLOBUS      --->$GLOBUS_LOCATION"
+        echo "X509 DIR    --->$X509_CERT_DIR"
+        echo "X509 CER    --->$X509_USER_CERT"
+        echo "X509 KEY    --->$X509_USER_KEY"
+        echo "QTDIR       --->$QTDIR"
+        echo "MOOD        --->$MOOD_SITE"
+        echo "--------------------------------"
+        return
+    fi
+
+    alias cvsa="cvs -q -d :pserver:cvs@alisoft.cern.ch:/soft/cvsroot -z 3"
+    alias cvsr="cvs -q -d :pserver:cvs@root.cern.ch:/user/cvs -z 3"
+    alias dc="rm -rf Log* gphysi* fort* ZZZ*"
+    alias dr="rm -rf *.root *.dat raw*"
+
+    unset ALICE_ROOT ALICE_TARGET ALIEN_ROOT ROOTSYS GLOBUS_LOCATION GSHELL_ROOT X509_CERT_DIR
+    export PATH=$MY_PATH
+    [ $1 == "OFF" ]   && { echo "AliceConf> Switch off the enviroument"; return; }
+    [ -d $1 ]         || { echo "AliceConf> --ERROR-->Directory $1 does not exist"; return; }
+
+    [ $# == "2" ] && { ALIEN_ROOT=$1/alien/$2; ROOTSYS=$ALIEN_ROOT/root; } || { ALICE_ROOT=$1/alice/$2_r$3_gcc; ROOTSYS=$1/root/$3_gcc; }
+
+
+    [ -d $ROOTSYS ]       || { echo "AliceConf>--ERROR-- There is no ROOT in  $ROOTSYS"; unset ROOTSYS; return; }
+    LIB_MY=/tmp/${USER}_lib_`$ROOTSYS/bin/root-config --arch` ;  [ ! -d $LIB_MY -a `id -nu` != "root" ] && mkdir $LIB_MY
+    export ROOTSYS LIB_MY LD_LIBRARY_PATH=$LIB_MY:$ROOTSYS/lib #LIB_MY is used in HmpidMake
+    export ROOTGUI=native
+    export PATH=$ROOTSYS/bin:$MY_PATH
+
+    alias  dk="ls -l $LIB_MY"
+    alias  aa="export ALICE_ROOT=.;export ALICE_TARGET=`$ROOTSYS/bin/root-config --arch`;" # alias to update alice
+    alias avs="export ALIVERBOSE=YES"; alias avr="unset ALIVERBOSE"
+    alias cdr="cd $ROOTSYS"
+    alias   r="$ROOTSYS/bin/root.exe"
+    alias  rv="$ROOTSYS/bin/root-config --version --arch"
+    alias  rf="$ROOTSYS/bin/root-config --features"
+    alias rqt="export ROOTGUI=qt"
+    alias  rn="export ROOTGUI=native"
+
+    echo "Root $ROOTSYS OK."
+
+    [ -d $ALICE_ROOT ]     || { echo "AliceConf>--ERROR-- There is no AliRoot in $ALICE_ROOT"; unset ALICE_ROOT; return; }
+
+    export ALICE_ROOT LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ALICE_ROOT/lib
+
+    alias a="$ALICE_ROOT/bin/aliroot"
+    alias b="$ALICE_ROOT/bin/b"
+    alias am="$ALICE_ROOT/bin/aliroot Hmenu.C"
+    alias cda="cd $ALICE_ROOT"
+    alias h="$ROOTSYS/bin/root.exe Hlib.C"
+    alias hm="$ROOTSYS/bin/root.exe Hlib.C Hmenu.C"
+    alias hc="$ROOTSYS/bin/root.exe -n Hconfig.C"
+    alias hd="$ROOTSYS/bin/root.exe -n Hlib.C Hdisp.C"
+    echo "AliRoot $ALICE_ROOT OK."
+}
+function ksCheckOs
+{ # we're running on deb based or rpm based OS?
+  local deb=/etc/debian_version
+  local rpm=/etc/redhat-release
+  [ -f $deb ] && { echo -n "It's DEBIAN version: " ; cat $deb; return 1; }
+  [ -f $rpm ] && { echo -n "It's RPM version: "    ; cat $rpm; return -1; }
+}
+
+function ksAliceStatus
+{
+    local Detectors="STEER ITS TPC TRD TOF PHOS FMD START MUON RICH"
+
+    if [ "$1" == "" ]; then
+	echo This script scans over ALIROOT build directory structure for some particulare feature. Please provide it
+    exit -1
+    fi
+
+    cd `cat $ALICE_ROOT/WhereSrc`  #go to aliroot build directory
+
+    echo Checking for feature: $1 in directory `pwd`
+
+    for i in $Detectors; do
+	cd $i
+	if `grep $1 * > /dev/null 2>&1` ; then   #returns the string found
+	    echo $i: Yes 
+	else
+	    echo $i: No
+	fi  
+	cd ..
+    done
+}
+
+function ksBuildDisketteRouter
+{
+# Created 05.07.2003
+# Used materials:
+# Linux kernel doc ramdisk.txt usually found in /usr/src/linux/Documentation
+
+	Tar=`pwd`
+	Size=4096
+	Tmp=/mnt/router #where to create all the disket staff, currently directly on floppy disk
+	Device=/dev/ram
+
+	if [ ! -f $Tar/etc/rc.router ]; then
+		echo "No $Tar file" 
+	exit -1
+	fi  
+ 
+	echo "Coping linux kernel..."
+	dd if=/usr/src/linux/arch/i386/boot/bzImage of=/dev/fd0 bs=1k
+	echo "Force kernel to use diskette as root device"
+	rdev /dev/fd0 /dev/fd0
+	echo "Tell kernel where to find compressed ramdisk"
+	rdev -r /dev/fd0 16984
+
+	echo "Cleaning $Size kb of $Device..."
+	dd if=/dev/zero of=$Device bs=1k count=$Size
+
+	echo "Creating ram disk of $Size kb and mounting it in $Tmp..."
+	[ -d $Tmp ] || mkdir $Tmp
+	mke2fs -m0 $Device $Size >/dev/null 2>&1
+	mount $Device $Tmp
+
+	echo "Creating ramdisk structure in $Tmp..."
+	cd $Tar
+	cp -r * $Tmp
+
+	echo "Creating dev substructure in $Tmp..."
+	mknod $Tmp/dev/console c 5 1
+	#mknod $Tmp/dev/ramdisk b 1 0
+
+	echo "Unmounting and deleting $Tmp..." 
+	umount $Tmp
+	rm -rf $Tmp
+
+	echo "Creating compressed ramdisk image on diskette from $Tmp..."
+	dd if=$Device bs=1k | gzip -v9 | dd of=/dev/fd0 bs=1k seek=600
+}
+function cat_files()
+{
+	local dir=$1
+	local files=${*#$1}
+	for f in $files; do
+		echo -e "\n$dir/$f:"
+		cat $dir/$f
+		echo -e "<----\tend\t----"
+	done
+}
+
+function ksAfsStatus()
+{
+	service openafs-server status
+	service openafs-client status
+	echo -e "\n\n**\t**\tSTATUS:\t**\t**\n"
+	
+	echo ++++++++++++++++++++Server:
+	ls -F /usr/afs/{etc,db,logs,local}*; 	files='ThisCell CellServDB'; 	cat_files /usr/afs/etc $files
+					files='BosConfig'; 		cat_files /usr/afs/local $files	
+	echo ++++++++++++++++++++Client:
+	ls -F /usr/vice/*; files='ThisCell CellServDB.local cacheinfo'; cat_files /usr/vice/etc $files
+
+	echo +++++++++++++++++++/vicepa:
+	ls -F /vicepa/
+
+	echo -e "**\t**\tFINISHED\t**\t**"
+	#echo BOS status:; 	bos status localhost -localauth
+	#echo BOS users:; 	bos listusers localhost -localauth
+	#echo BOS hosts:; 	bos listhosts localhost -localauth
+	#echo BOS keys:; 	bos listkeys localhost -localauth
+	echo asetkey:; 		asetkey list
+	#echo VOS volumes:; 	vos listvol localhost -localauth
+}
+
+setcolor_caption="echo -en \\033[1;34m"
+setcolor_success="echo -en \\033[1;32m"
+setcolor_failure="echo -en \\033[1;31m"
+setcolor_normal="echo -en \\033[0;39m"
+
+PHASE_COUNT=0
+function echo_phase_init()
+{
+	PHASE_COUNT=$((PHASE_COUNT+1))
+	$setcolor_caption
+	echo -n "Phase #$PHASE_COUNT: $*..."
+	$setcolor_normal
+	echo
+}
+function success()
+{
+	$setcolor_success
+	echo -n "DONE"
+	$setcolor_normal
+	echo
+}
+function fail()
+{
+	$setcolor_failure
+	echo -n "FAILED"
+	$setcolor_normal
+	echo
+}
+function PingNodeOrExit()
+{
+   ping -c 1 $1 > /dev/null 2>&1
+   [ "$?" == "0" ] || { echo Node \"$1\" is off, aborting...; exit 1; }
+}
+
+function ksIntallKernel2Remote
+{
+    grep "Linux kernel release" README >/dev/null 2>&1
+    [ $? -ne 0 ] && { echo You need to invoke this from head of kernel tree; return 1; }
+    echo Install new kernel
+    ls configs/
+    read -p "to remote node               [tom]: " Node; [ -z "$Node" ] && Node="tom"  ; PingNodeOrExit $Node
+    read -p "with arch ( i386 x86_64 ) [x86_64]: " Arch; [ -z "$Arch" ] && Arch="x86_64"
+    read -p "config file              [.config]: " Conf;
+    [ -z "$Conf" ] || cp configs/$Conf .config
+    make ARCH=$Arch nonint_oldconfig   ; [ "$?" != "0" ] && return 1
+    make ARCH=$Arch                    ; [ "$?" != "0" ] && return 1
+
+    Release=$(make kernelversion)
+
+    Dir=$HOME/tmp ;    mkdir -p $Dir ;    mkdir -p $Dir/boot
+    INSTALL_MOD_PATH=$Dir make modules_install
+                      cp arch/$Arch/boot/bzImage  $Dir/boot/vmlinuz-$Release
+                      cp System.map               $Dir/boot/System.map-$Release
+    chmod -x vmlinux; cp vmlinux                  $Dir/boot/vmlinux-$Release
+                      cp .config                  $Dir/boot/config-$Release
+
+    Tarball=$HOME/tst-kernel-${Release}.tgz
+    cd $Dir ; tar czf $Tarball * ;  scp $Tarball root@$Node:/ ;  rm -rf $Dir $Tarball
+}
+function ksOvzNewCt
+{
+  echo "OS templates, currently installed:"
+  vzpkg list
+  vzpkgls
+  read -p "How many CTs   [1]: " NumCt ; [ -z "$NumCt" ] && NumCt=1
+  read -p "Which OS template : " OsTmpl
+  [ "$NumCt" == "1" ] && names="241"
+  [ "$NumCt" == "2" ] && names="241 242"
+  [ "$NumCt" == "3" ] && names="241 242 243"
+  [ "$NumCt" == "4" ] && names="241 242 243 244"
+  [ "$NumCt" == "5" ] && names="241 242 243 244 245"
+  for ctid in $names; do
+    cthn=k${ctid}.ct
+    ctip=10.0.15.$ctid
+    vzctl create $ctid --ostemplate $OsTmpl
+    vzctl set $ctid --ipadd $ctip --hostname $cthn --userpasswd root:1q2w3e --save
+    vzctl start $ctid
+  done
+}
+function ksRefRus {
+    cat  <<EOF
+Это русский текст в кодировке UTF8
+Ё!"№;%:?*()_+/
+ё1234567890-=\
+
+??? ????? ? ????????? KOI8R
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+
+??? ⥪?? ? ????஢?? CP866
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+
+??? ????? ? ????????? CP1251
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+EOF
+}
+function ksRefMorze {
+    cat <<EOF
+01 Aa ._   alfa     А   01 А .-    ай-даа            A          alpha
+02 Bb -... bravo    Б   02 Б -...  баа-ки-те-кут     B          beta
+03 Cc -.-. charlie  Ц   03 В  .--  ви-даа-лаа        W          gamma
+04 Dd -..  delta    Д   04 Г  --.  гоо-воо-ри        G          delta
+05 Ee .    echo     Е   05 Д  -..  доо-ми-ки         D          epsilon
+06 Ff ..-. foxtrot  Ф   06 Е  .    есть              E          zeta
+07 Gg --.  golf     Г   07 Ё                                    eta
+08 Hh .... hotel    Х   08 Ж  ...- жи-ви-те-стоо     V          theta
+09 Ii ..   india    И   09 З  --.. заа-каа-ти-ки     Z          iota
+10 Jj .--- juliett  Й   10 И  ..   и-ди              I          kappa
+11 Kk -.-  kilo     К   11 Й  .--- ку-даа-поо-шлаа   J		lambda
+12 Ll .-.. lima     Л   12 К  -.-  каак-де-лаа       K          mu
+13 Mm --   mike     М   13 Л  .-.. лу-наа-ти-ки      L          nu
+14 Nn -.   november Н   14 М  --   маа-маа           M          xi
+15 Oo ---  oskar    О   15 Н  -.   ноо-мер           N          omicron
+16 Pp .--. papa     П   16 О  ---  оо-коо-лоо        O          pi
+17 Qq --.- quebec   Щ   17 П  .--. пи-лаа-поо-ёт     P          rho
+18 Rr .-.  romeo    Р   18 Р  .-.  ре-шаа-ет         R          sigma
+19 Ss ...  sierra   С   19 С  ...  са-мо-лёт         S          tau
+20 Tt -    tango    Т   20 Т  -    таак              T          upsilon
+21 Uu ..-  uniform  У   21 У  ..-  у-нес-лаа         U          fi
+22 Vv ...- victor   Ж   22 Ф  ..-. фи-ли-моон-чик    F          chi
+23 Ww .--  whiskey  В   23 Х  .... хи-ми-чи-те       H          psi
+24 Xx -..- x-ray    Ь   24 Ц  -.-. цаа-пли-цаа-пли   C          omega
+25 Yy -.-- yankee   Ы   25 Ч
+26 Zz --.. zulu     З   26 Ы  -.-- ыы-не-наа-доо     Y
+                        27 Ш  ---- шаа-роо-ваа-рыы
+                        28 Щ  --.- щаа-ваам-не-шаа   Q
+                        29 Ь  -..- тоо-мяг-кий-знаак X
+                        30 Ъ
+                        31 Э  ..-..э-ле-роон-чи-ки
+                        32 Ю  ..-- ю-ли-аа-наа
+                        33 Я  .-.- я-маал-я-маал
+EOF
+}
+function ksRefHex
+{
+    cat <<EOF
+ hex table:
+ 0 0x0 0000
+ 1 0x1 0001
+ 2 0x2 0010
+ 3 0x3 0011
+ 4 0x4 0100
+ 5 0x5 0101
+ 6 0x6 0110
+ 7 0x7 0111
+ 8 0x8 1000
+ 9 0x9 1001
+10 0xa 1010
+11 0xb 1011
+12 0xc 1100
+13 0xd 1101
+14 0xe 1110
+15 0xf 1111
+EOF
+}
+function ksRefRpm {
+   cat <<EOF
+list all packages  rpm -qa                   dpkg -l
+list files         rpm -ql name              dpkg -L name
+show info          rpm -qi name              dpkg -s name
+who owns the file  rpm -qf file              dpkg -S file
+show scripts       rpm -q --scripts name     cat /var/lib/dpkg/info name.xxx
+install package    rpm -ivh name             dpkg --force-architecture -i name
+key install        rpm --import key
+show key ring      rpm -qa gpg-pubkey*
+EOF
+}
+function ksRef {
+   cat <<EOF
+route add -host 10.20.30.40 gw vas1
+ip r a 10.0.15.0/28 via 10.30.1.180
+ip r c default via 10.20.30.40 dev eth0
+net:  Fedora                                       Ubuntu
+      /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+
+mount -o rw,remount /dev/sda1
+echo CONFIG_DEBUG_IN=y > .config ; make oldconfig #build with debug
+make -j32 CC=distcc ARCH=x86_64                   #build with DISTCC
+make V=1                                          #build with verbose printout
+echo "savedefault --default=1 --once" |grub #say grub to reboot once
+echo kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst #reboot if panic
+syscall:	check include/asm/unistd.h for __NR_syscallname
+
+cscope: cscope -b -R #build reference file
+find $UNICORN/ao/smb $UNICORN/ao/shell $UNICORN/ao/manager $UNICORN/ao/lib -name *.[ch]pp -o  -name *.[ch] > cscope.files
+cscope -b -q -k
+
+
+while true ; do echo 123 ; done # busy cycle
+
+ps -L -p pid # shows all threads for process
+
+diff -pNU7 # p for function N
+russup@support.swsoft.com girl:click.bravo
+CodiceFiscale: SHL KLL 69S13 Z154B
+EOF
+}
+function ksRefOS
+{
+cat <<EOF
+mysql --user=nova --password=nova nova
+select id,cidr,project_id  from networks;
+EOF
+}
+function ksRefVim
+{
+  cat << EOF
+vim "+e ++enc=utf8" #run vim with russian support (cp1251 utf8  koi8r cp866)
+open the file name under the cursor:
+gf in current window
+<Ctrl-w>f in new window
+<Ctrl-w>gf in new tab
+EOF
+}
+function kir
+{
+    return 0
+}
+function _kir
+{
+    local cur prev opts base
+    COMPREPLAY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts=$(declare -F | grep ks[A-Z] | awk '{print $3}')
+    COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
+    return 0
+}
+
+function ksTailLogAfs
+{
+    cd /var/log
+    if ksCheckOs; then
+	tail -F daemon.log user.log autgh.log debug kern.log dmesg messages\
+	    kerveros/{krb5kdc,kadmin,krb2lib}.log \
+	    openafs/{Bos,File,Salvage,VL,Volser}Log
+    else
+	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log	
+    fi
+}
+
+function ksCheckOs(){ # we're running on deb based or rpm based OS?
+  local deb=/etc/debian_version
+  local rpm=/etc/redhat-release
+  [ -f $deb ] && { echo -n "It's DEBIAN version: " ; cat $deb; return 1; }
+  [ -f $rpm ] && { echo -n "It's RPM version: "    ; cat $rpm; return 2; }
+}
+
+function ksNtpCreateConfig
+{
+    cat > /etc/ntp.conf <<EOF
+driftfile /var/lib/ntp/drift
+
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+
+restrict 127.0.0.1 
+restrict -6 ::1
+
+server dn11.kirshil.ru
+
+includefile /etc/ntp/crypto/pw
+
+keys /etc/ntp/keys
+EOF
+}
+
+[ -f /etc/bash_completion ] && . /etc/bash_completion #init bash completion if exists
+complete -F _kir kir

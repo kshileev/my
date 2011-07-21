@@ -1,0 +1,50 @@
+syntax enable
+filetype indent on
+set incsearch		"incremental search
+set smarttab
+set hlsearch
+set number		"number lines
+set modeline		"analize # vim: line from edited file
+set laststatus=2	"make visiable the current file name
+set sw=4		"tab=4 symbols
+set dir=/tmp		"swp file is created here
+set cindent smartindent
+set mouse=a            "use mouse in hyperlinks
+set path=$HOME/hg/kshileev/include,$HOME/hg/kshileev/mock/include,/usr/include "open include files from here by gf
+"set bg=dark            "different color schema optimised for dark background
+"set wrap		"autowrap long lines
+"set makeprg=build\ run.smb.ut "what to call on :mak
+
+let c_space_errors=1
+highlight LongLines cterm=reverse
+highlight BadSpaces cterm=reverse
+match LongLines  /\s\+\.\%>80v/     "highlight lines more then 80 symbols
+match BadSpaces	 /\s\+$\| \+\ze\t/  "highlight spaces
+
+map <M-PageDown> :cc<CR>
+map <C-PageDown> :cn<CR>
+map <C-PageUp> :cp<CR>
+"map <F2> :w\|!python %<cr>
+map <C-o> :browse confirm e<CR>
+map <C-s> :w<CR>
+map <F12> :noh<CR>
+map <C-b> :w<CR> :mak<CR>
+"map <F12> :%s/\s\+$//e
+"nmap <C-m> :! man <C-R>=expand("<cword>")<CR><CR>
+
+if filereadable(expand("/tmp/kirshil_cscope/cscope.out"))
+    cs add /tmp/${USER}_cscope/cscope.out
+    set cscopeverbose
+    " search for this symbol
+    nmap <F2> :cs find s <C-R>=expand("<cword>")<CR><CR>
+
+    " where is this type is defined
+    nmap <F3> :cs find g <C-R>=expand("<cword>")<CR><CR>
+    " where is this variable is assigned
+    nmap <F4> :cs find t <C-R>=expand("<cword>")<CR><CR>
+    " functions which calls this function
+    nmap <F5> :cs find c <C-R>=expand("<cword>")<CR><CR>
+
+    " functions which're called by this function
+    nmap <F6> :cs find d <C-R>=expand("<cword>")<CR><CR>
+endif

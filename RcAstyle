@@ -1,0 +1,12 @@
+--style=stroustrup                     # { are broken only for methodes/functions
+--indent=spaces=4                      # three spaces per indentation level
+--convert-tabs                         # convert tabs into spaces
+--indent-preprocessor		       # indent pp statements ending on '\'
+--max-instatement-indent=60            # if indentation of continuing line is <60, indent
+--min-conditional-indent=0             # no extra indent for continued conditions
+--keep-one-line-blocks                 # {} on one line
+--keep-one-line-statements             # if() { do1; do2;} on one line
+--unpad-paren                          # and remove all unwanted padding around parentheses
+#--delete-empty-lines                  # no empty lines in methodes/functions
+--suffix=none                          # no backups - we have ACME
+--recursive                            # can do astyle "src/*.cpp" "include/*.hpp"
