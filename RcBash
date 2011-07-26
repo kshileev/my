@@ -31,7 +31,7 @@ alias	dm='dmesg'
 alias	du='du -h'
 alias	e='echo'
 alias	r='root -l'
-alias	k='cd ~/hg/kshileev'
+alias	k='ssh-add -l'
 alias   gr='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
 alias   gru='find ~/hg/kshileev ~/Dropbox/ref/shell -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
 alias	h='history'
@@ -44,7 +44,7 @@ alias	ls='ls --color=auto'
 alias	m='less'
 alias	p="pstree -h"
 alias	pw="ps uxwf"
-alias	src='. ~/.bash_profile'
+alias	src='[ -f ~/.bash_profile ] && . ~/.bash_profile || . ~/.profile'
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
@@ -1187,13 +1187,20 @@ key install        rpm --import key
 show key ring      rpm -qa gpg-pubkey*
 EOF
 }
-function ksRef {
-   cat <<EOF
+function ksRefNet {
+cat <<EOF
 route add -host 10.20.30.40 gw vas1
 ip r a 10.0.15.0/28 via 10.30.1.180
+ip r a 10.0.5.1 dev vlan105
 ip r c default via 10.20.30.40 dev eth0
+ip l s vlan105 up
+brctl addif br105 vlan105
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+EOF
+}
+function ksRef {
+   cat <<EOF
 
 mount -o rw,remount /dev/sda1
 echo CONFIG_DEBUG_IN=y > .config ; make oldconfig #build with debug
@@ -1286,6 +1293,14 @@ includefile /etc/ntp/crypto/pw
 keys /etc/ntp/keys
 EOF
 }
+
+function ksLoadKey
+{ # load pub-riv key if called from under ssh-agent, do nothing otherwise
+   [ -z $SSH_AGENT_PID ] && (echo ssh-agent not running.; return)
+   ssh-add $HOME/Dropbox/my/security/id_rsa	
+}
+
+ksLoadKey
 
 [ -f /etc/bash_completion ] && . /etc/bash_completion #init bash completion if exists
 complete -F _kir kir
