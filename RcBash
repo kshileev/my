@@ -48,72 +48,6 @@ alias	src='[ -f ~/.bash_profile ] && . ~/.bash_profile || . ~/.profile'
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
-function ksNovaEnv
-{
-    echo Current NOVA:
-    echo EC2_URL: $EC2_URL
-    echo S3_URL: $S3_URL
-    echo EC2_USER_ID: $EC2_USER_ID
-    echo EC2_ACCESS_KEY: $EC2_ACCESS_KEY
-    echo EC2_PRIVATE_KEY: $EC2_ACCESS_KEY
-    echo EC2_SECRET_KEY: $EC2_SECRET_KEY
-    echo EC2_CERT: $EC2_CERT
-    echo NOVA_CERT: $NOVA_CERT
-    echo EUCALYPTUS_CERT: $EUCALYPTUS_CERT
-    echo NOVA_API_KEY: $NOVA_API_KEY
-    echo NOVA_USERNAME: $NOVA_USERNAME
-    echo NOVA_URL: $NOVA_URL
-    echo KIR_EC_TOKEN: $KIR_EC_TOKEN
-    echo KIR_OS_TOKEN: $KIR_OS_TOKEN
-}
-
-function ksNovaAuth
-{
-    export KIR_OS_TOKEN=$(curl -D - -H "X-Auth-User:$NOVA_USERNAME" -H "X-Auth-Key: $NOVA_API_KEY" $NOVA_URL 2>/dev/null | grep -e ^X-Auth-Token | awk '{print $2}')
-    echo $KIR_EC_TOKEN
-    echo $KIR_OS_TOKEN
-}
-
-function ksNovaCreateImage
-{
-    mkdir
-}
-
-function ksNova
-{
-    echo Currently available cloud controllers:
-    for cci in 172.16.128.226 cc-cssn dragon004.hw
-    do
-	echo $cci
-    done
-    read -p 'Choose one: ' cc; [ -z "$cc" ] && echo No CC chossen, aborting && return
-
-    echo CC $cc has following projects:
-    ssh root@$cc nova-manage project list 2>/dev/null
-    read -p 'Choose project: ' project; [ -z "$project" ] && echo No project chossen, aborting && return
-
-    echo CC $cc has following user:
-    ssh root@$cc nova-manage user list 2>/dev/null
-    read -p 'Choose user: ' user; [ -z "$user" ] && echo No user chossen, aborting && return
-
-    mkdir -p $HOME/$cc
-    rm -rf $HOME/$cc/*
-    ssh root@$cc nova-manage project zip $project $user /tmp/$USER.creds.zip 2>/dev/null
-    scp root@$cc:/tmp/$USER.creds.zip $HOME/$cc
-    unzip -d $HOME/$cc $HOME/$cc/$USER.creds.zip   
-    . $HOME/$cc/novarc
-    unset KIR_EC_TOKEN
-    unset KIR_OS_TOKEN
-    ksNovaEnv
-}
-
-function ksNovaTunnels
-{
-    ssh -f -N -L 22222:n2:22 root@gc-d
-    ssh -f -N -L 28774:n2:8774 root@gc-d
-    ssh -f -N -L 33333:n3:22 root@gc-d
-}
-
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
 WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
@@ -338,25 +272,27 @@ function ksRepo
 {
     echo I know the follifing repositories:
     echo
-    echo github kshileev libcloud    
-    echo gtihub kshileev nova-tests
+    echo github kshileev buzzoola
+    echo github kshileev barracuda
     echo GD svn goldfish
     echo GD svn azurehpc
-    echo GD svn masys 
+    echo GD svn masys
     echo Paralles git ovzctl
     echo Paralles git ovzkernel
     echo
 
     read -p 'Choose repo: ' repo
-    case $repo in 
+    case $repo in
+	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz ;;
+	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	libcloud|nova-tests) echo Not yet implemented!	    ;;
-	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;    
-	azurehpc) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/azurehpc  ;;    
+	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;
+	azurehpc) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/azurehpc  ;;
 	masys) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/macys/trunk  ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
 	*)  echo No repo choosen, nothing to do! ;;
-    esac	
+    esac
 }
 function ksInitrd
 {
@@ -1296,8 +1232,8 @@ EOF
 
 function ksLoadKey
 { # load pub-riv key if called from under ssh-agent, do nothing otherwise
-   [ -z $SSH_AGENT_PID ] && (echo ssh-agent not running.; return)
-   ssh-add $HOME/Dropbox/my/security/id_rsa	
+   [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
+   ssh-add $HOME/Dropbox/keys/kir-ssh.priv
 }
 
 ksLoadKey
