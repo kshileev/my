@@ -1231,9 +1231,9 @@ EOF
 }
 
 function ksLoadKey
-{ # load pub-riv key if called from under ssh-agent, do nothing otherwise
+{ # load key if called from under ssh-agent, do nothing otherwise
    [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
-   ssh-add $HOME/Dropbox/keys/kir-ssh.priv
+   ssh-add $HOME/Dropbox/keys/kir-ssh.pk
 }
 
 ksLoadKey
