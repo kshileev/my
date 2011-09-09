@@ -1233,7 +1233,8 @@ EOF
 function ksLoadKey
 { # load key if called from under ssh-agent, do nothing otherwise
    [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
-   ssh-add $HOME/Dropbox/keys/kir-ssh.pk
+   local key="$HOME/Dropbox/keys/KirVaio.pk"
+   [ -f $key ] && ssh-add $key
 }
 
 ksLoadKey
