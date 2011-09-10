@@ -32,8 +32,11 @@ alias	du='du -h'
 alias	e='echo'
 alias	r='root -l'
 alias	k='ssh-add -l'
-alias   gr='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
-alias   gru='find ~/hg/kshileev ~/Dropbox/ref/shell -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+alias   grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+alias	gs='git status'
+alias	gr='git remote -v'
+alias   gc='git commit'
+alias	gp='git pull up master'
 alias	h='history'
 alias	l='ls -F --color=tty'
 alias	l.='ls -dh .* --color=auto'
@@ -1233,11 +1236,13 @@ EOF
 function ksLoadKey
 { # load key if called from under ssh-agent, do nothing otherwise
    [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
+   echo Currently loaded keys:
+   ssh-add -l
+   echo Currently available in .ssh:
+   ls $HOME/.ssh
    local key="$HOME/Dropbox/keys/KirVaio.pk"
    [ -f $key ] && ssh-add $key
 }
-
-ksLoadKey
 
 [ -f /etc/bash_completion ] && . /etc/bash_completion #init bash completion if exists
 complete -F _kir kir
