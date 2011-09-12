@@ -26,6 +26,7 @@ export DISTCC_HOSTS='artemis.sw.ru 10.30.23.114 10.0.70.80'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=$MY/RcAstyle
 export LD_LIBRARY_PATH=$HOME
 alias   a='alias'
+alias	all='ssh-add ~/.ssh/KirVaio; ssh-add ~/.ssh/MrBuzzoolaMain; . ~/.ssh/novarc.aws'
 alias	df='df -h'
 alias	dm='dmesg'
 alias	du='du -h'
