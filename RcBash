@@ -51,6 +51,35 @@ alias	src='[ -f ~/.bash_profile ] && . ~/.bash_profile || . ~/.profile'
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
+setcolor_caption="echo -en \\033[1;34m"
+setcolor_success="echo -en \\033[1;32m"
+setcolor_failure="echo -en \\033[1;31m"
+setcolor_normal="echo -en \\033[0;39m"
+
+_ecount=0
+function _e()
+{
+	_ecount=$((_ecount+1))
+	$setcolor_caption
+	echo -n "Phase #$_ecount: $*..."
+	$setcolor_normal
+	echo
+}
+function _eok()
+{
+	$setcolor_success
+	echo -n "DONE"
+	$setcolor_normal
+	echo
+}
+function _enok()
+{
+	$setcolor_failure
+	echo -n "FAILED"
+	$setcolor_normal
+	echo
+}
+
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
 WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
@@ -957,34 +986,7 @@ function ksAfsStatus()
 	#echo VOS volumes:; 	vos listvol localhost -localauth
 }
 
-setcolor_caption="echo -en \\033[1;34m"
-setcolor_success="echo -en \\033[1;32m"
-setcolor_failure="echo -en \\033[1;31m"
-setcolor_normal="echo -en \\033[0;39m"
 
-PHASE_COUNT=0
-function echo_phase_init()
-{
-	PHASE_COUNT=$((PHASE_COUNT+1))
-	$setcolor_caption
-	echo -n "Phase #$PHASE_COUNT: $*..."
-	$setcolor_normal
-	echo
-}
-function success()
-{
-	$setcolor_success
-	echo -n "DONE"
-	$setcolor_normal
-	echo
-}
-function fail()
-{
-	$setcolor_failure
-	echo -n "FAILED"
-	$setcolor_normal
-	echo
-}
 function PingNodeOrExit()
 {
    ping -c 1 $1 > /dev/null 2>&1
