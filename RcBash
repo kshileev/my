@@ -80,6 +80,26 @@ function _enok()
 	echo
 }
 
+function ksCloudMakeAmi()
+{
+    local image=$HOME/ami
+    local size=1024
+    local pkgs="git-core,libcurl4-openssl-dev,libxslt1-dev,python-dev,libpq-dev"
+    _e Create $image file of $size MB
+    dd if=/dev/zero of=$image bs=1M count=$size && _eok || return 1
+    _e Make fs on $image
+    mke2fs -F -j $image && _eok || return 1
+    _e Make tmp dir $dir
+    local dir=`mktemp -d $HOME/mnt_XXXX` && _eok || return 1
+    _e Mount $image to $dir
+    sudo mount -o loop $image $dir && _eok || return 1
+    _e Make chroot install
+    sudo debootstrap --arch amd64 --include $pkgs lucid $dir && _eok || return 1
+    _e Unmount $dir
+    sudo umount $dir && _eok || return 1
+    rm -rf $dir
+}
+
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
 WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
