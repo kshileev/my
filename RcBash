@@ -81,6 +81,25 @@ function _enok()
 	echo
 }
 
+function ksCloudPrintEnv
+{
+    echo Current Cloud:
+    echo EC2_URL: $EC2_URL
+    echo S3_URL: $S3_URL
+    echo EC2_USER_ID: $EC2_USER_ID
+    echo EC2_ACCESS_KEY: $EC2_ACCESS_KEY
+    echo EC2_PRIVATE_KEY: $EC2_ACCESS_KEY
+    echo EC2_SECRET_KEY: $EC2_SECRET_KEY
+    echo EC2_CERT: $EC2_CERT
+    echo NOVA_CERT: $NOVA_CERT
+    echo EUCALYPTUS_CERT: $EUCALYPTUS_CERT
+    echo NOVA_API_KEY: $NOVA_API_KEY
+    echo NOVA_USERNAME: $NOVA_USERNAME
+    echo NOVA_URL: $NOVA_URL
+    echo USER_EC_TOKEN: $USER_EC_TOKEN
+    echo USER_OS_TOKEN: $USER_OS_TOKEN
+}
+
 function ksCloudMakeAmi()
 {
     local image=$HOME/ami
