@@ -32,12 +32,14 @@ alias	dm='dmesg'
 alias	du='du -h'
 alias	e='echo'
 alias	r='root -l'
-alias	k='ssh-add -l'
+alias	k='ksLoadKey'
 alias   grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
 alias	gs='git status'
 alias	gr='git remote -v'
 alias   gc='git commit'
 alias	gp='git pull up master'
+alias	gd='git diff'
+alias	gds='git diff --staged'
 alias	h='history'
 alias	l='ls -F --color=tty'
 alias	l.='ls -dh .* --color=auto'
@@ -48,7 +50,8 @@ alias	ls='ls --color=auto'
 alias	m='less'
 alias	p="pstree -h"
 alias	pw="ps uxwf"
-alias	src='[ -f ~/.bash_profile ] && . ~/.bash_profile || . ~/.profile'
+alias	q='. ~/buzzoola/deploy/provision.sh'
+alias	src='[ -f ~/.bashrc ] && . ~/.bashrc'
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
@@ -79,45 +82,6 @@ function _enok()
 	echo -n "FAILED"
 	$setcolor_normal
 	echo
-}
-
-function ksCloudPrintEnv
-{
-    echo Current Cloud:
-    echo EC2_URL: $EC2_URL
-    echo S3_URL: $S3_URL
-    echo EC2_USER_ID: $EC2_USER_ID
-    echo EC2_ACCESS_KEY: $EC2_ACCESS_KEY
-    echo EC2_PRIVATE_KEY: $EC2_ACCESS_KEY
-    echo EC2_SECRET_KEY: $EC2_SECRET_KEY
-    echo EC2_CERT: $EC2_CERT
-    echo NOVA_CERT: $NOVA_CERT
-    echo EUCALYPTUS_CERT: $EUCALYPTUS_CERT
-    echo NOVA_API_KEY: $NOVA_API_KEY
-    echo NOVA_USERNAME: $NOVA_USERNAME
-    echo NOVA_URL: $NOVA_URL
-    echo USER_EC_TOKEN: $USER_EC_TOKEN
-    echo USER_OS_TOKEN: $USER_OS_TOKEN
-}
-
-function ksCloudMakeAmi()
-{
-    local image=$HOME/ami
-    local size=1024
-    local pkgs="git-core,libcurl4-openssl-dev,libxslt1-dev,python-dev,libpq-dev"
-    _e Create $image file of $size MB
-    dd if=/dev/zero of=$image bs=1M count=$size && _eok || return 1
-    _e Make fs on $image
-    mke2fs -F -j $image && _eok || return 1
-    _e Make tmp dir $dir
-    local dir=`mktemp -d $HOME/mnt_XXXX` && _eok || return 1
-    _e Mount $image to $dir
-    sudo mount -o loop $image $dir && _eok || return 1
-    _e Make chroot install
-    sudo debootstrap --arch amd64 --include $pkgs lucid $dir && _eok || return 1
-    _e Unmount $dir
-    sudo umount $dir && _eok || return 1
-    rm -rf $dir
 }
 
 WaasSocketFile="/tmp/WAAS"
@@ -1216,10 +1180,9 @@ function ksRefVim
 {
   cat << EOF
 vim "+e ++enc=utf8" #run vim with russian support (cp1251 utf8  koi8r cp866)
-open the file name under the cursor:
-gf in current window
-<Ctrl-w>f in new window
-<Ctrl-w>gf in new tab
+open file under cursor: gf <C-w>f <C-w>gf in new tab
+go forth and back:\t <C-]> <C-T> <C-O>
+substitute:\t :%s/pattert/string/cg
 EOF
 }
 function kir
@@ -1277,13 +1240,15 @@ EOF
 
 function ksLoadKey
 { # load key if called from under ssh-agent, do nothing otherwise
-   [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
-   echo Currently loaded keys:
-   ssh-add -l
-   echo Currently available in .ssh:
-   ls $HOME/.ssh
-   local key="$HOME/Dropbox/keys/KirVaio.pk"
-   [ -f $key ] && ssh-add $key
+    local key=$1
+    [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
+    echo Currently loaded keys:
+    ssh-add -l
+    [ -z "$key" ] && return 0
+    echo Currently available :
+    find $HOME -name *.pk
+    read -p 'Enter key: ' key
+    [ -f $key ] && ssh-add $key
 }
 
 [ -f /etc/bash_completion ] && . /etc/bash_completion #init bash completion if exists
