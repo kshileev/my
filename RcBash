@@ -58,6 +58,17 @@ alias	src='[ -f ~/.bashrc ] && . ~/.bashrc'
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
+ColorNormal="\\033[0;39m"
+
+ColorBlack="\\033[0;30m";     ColorDarkGray="\\033[1;30m"
+ColorBlue="\\033[0;34m";      ColorLightBlue="\\033[1;34m"
+ColorGreen="\\033[0;32m";     ColorLightGreen="\\033[1;32m"
+ColorCyan="\\033[0;36m";      ColorLightCyan="\\033[1;36m"
+ColorRed="\\033[0;31m";       ColorLightRed="\\033[1;31m"
+ColorPurple="\\033[0;35m";    ColorLightPurple="\\033[1;35m"
+ColorBrown="\\033[0;33m";     ColorYellow="\\033[1;33m"
+ColorLightGray="\\033[0;37m"; ColorWhite="\\033[1;37m"
+
 setcolor_caption="echo -en \\033[1;34m"
 setcolor_success="echo -en \\033[1;32m"
 setcolor_failure="echo -en \\033[1;31m"
