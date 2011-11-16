@@ -333,7 +333,10 @@ function ksRepo
 
     read -p 'Choose repo: ' repo
     case $repo in
-	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz ;;
+	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz
+		  cd $HOME/buzz
+		  git remote add up git@github.com:Buzzoola/buzzoola.git
+		  ;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	libcloud|nova-tests) echo Not yet implemented!	    ;;
 	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;
@@ -346,7 +349,7 @@ function ksRepo
 }
 function ksInitrd
 {
-    echo Operations with INITRD: 
+    echo Operations with INITRD:
     echo 1. unzip into current dir
     echo 2. zip current dir into ~/initrd-$USER.img
     # read -p gzip -dc | cpio -i > .
