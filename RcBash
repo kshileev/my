@@ -25,6 +25,7 @@ export SIMPLE_BACKUP_SUFFIX=.kirshil				#used by patch
 export DISTCC_HOSTS='artemis.sw.ru 10.30.23.114 10.0.70.80'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=$MY/RcAstyle
 export LD_LIBRARY_PATH=$HOME
+[ -d $HOME/ElasticLoadBalancing ] && AWS_ELB_HOME=$HOME
 alias   a='alias'
 alias	all='ssh-add ~/.ssh/KirVaio; ssh-add ~/.ssh/MrBuzzoolaMain; . ~/.ssh/novarc.aws'
 alias	df='df -h'
@@ -323,6 +324,7 @@ function ksRepo
     echo I know the follifing repositories:
     echo
     echo github kshileev buzzoola
+    echo github Buzzoola buzzoola
     echo github kshileev barracuda
     echo GD svn goldfish
     echo GD svn azurehpc
@@ -337,6 +339,7 @@ function ksRepo
 		  cd $HOME/buzz
 		  git remote add up git@github.com:Buzzoola/buzzoola.git
 		  ;;
+	Buzzoola) git clone git@github.com:Buzzoola/buzzoola.git ;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	libcloud|nova-tests) echo Not yet implemented!	    ;;
 	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;
