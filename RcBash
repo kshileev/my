@@ -4,7 +4,7 @@
 [ -z "PS1" ] && return						#nothing to do for non interactive shell
 PS1="\!:\W> "							#prompt: 22:dirname>
 
-export PATH="$HOME:/usr/bin:/bin:/usr/local/bin:/sbin:/usr/sbin"
+export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 
 export MY=~/Dropbox/my						#used by ALICE scripts
 export MY_CERN_DIR=$HOME/sw
