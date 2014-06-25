@@ -8,8 +8,7 @@ PS1="\!:\W> "							#prompt: 22:dirname>
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 
 export MY=~/Dropbox/my						#used by ALICE scripts
-export MY_CERN_DIR=$HOME/sw
-export MY_CSCOPE_DIR=/tmp/${USER}_cscope				#tmp dir where cscope stores the output
+export MY_CERN_DIR=$HOME${TmpBin}ort MY_CSCOPE_DIR=/tmp/${USER}_cscope				#tmp dir where cscope stores the output
 export ROOTGUI=native
 export LESSCHARSET="koi8-r"
 export LESSHISTFILE=/tmp/${USER}_LessHist
@@ -21,7 +20,7 @@ export JAVA_HOME=/usr/lib/jvm/java-6-sun/jre
 export TC_INSTALL_DIR=/usr/local/terracotta/current
 export CVS_RSH=ssh
 export X509_USER_CERT=$MY/KirINFN.pem				#certificate used by globus
-export X509_USER_KEY=$MY/KirPrivate.pem				#private key for this certificate
+export X509_USER_KEY=$MY/KirP${Tmp}te.pem				#private key for this certificate
 export SIMPLE_BACKUP_SUFFIX=.kirshil				#used by patch
 export DISTCC_HOSTS='artemis.sw.ru 10.30.23.114 10.0.70.80'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=$MY/RcAstyle
@@ -155,10 +154,10 @@ function ksWaasGoBld
 }
 function WaasSocket
 {
-    if [ ! -S $WaasSocketFile ]; then
+    if [ ! -S ${WaasSocketFile} ]; then
 	echo "Creating file_socket to Cisco BLD server..."
-	ssh -f -N -L $WaasTunelPort:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
-	ssh -f -N -p $WaasTunelPort kshileev@localhost -M -S $WaasSocketFile
+	ssh -f -N -L ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
+	ssh -f -N -p ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
     fi
 }
 
@@ -465,9 +464,9 @@ int main()
 }
 EOF
 
-	g++ $TmpFile -o $TmpBin
+	g++ ${TmpFile} -o $TmpBin
 	echo Platform `uname -m`
-	$TmpBin
+	${TmpBin}
 	rm $TmpFile $TmpBin
 }
 
@@ -941,7 +940,7 @@ function ksBuildDisketteRouter
 	Tmp=/mnt/router #where to create all the disket staff, currently directly on floppy disk
 	Device=/dev/ram
 
-	if [ ! -f $Tar/etc/rc.router ]; then
+	if [ ! -f ${Tar}/etc/rc.router ]; then
 		echo "No $Tar file" 
 	exit -1
 	fi  
@@ -957,36 +956,35 @@ function ksBuildDisketteRouter
 	dd if=/dev/zero of=$Device bs=1k count=$Size
 
 	echo "Creating ram disk of $Size kb and mounting it in $Tmp..."
-	[ -d $Tmp ] || mkdir $Tmp
-	mke2fs -m0 $Device $Size >/dev/null 2>&1
-	mount $Device $Tmp
+	[ -d ${Tmp} ] || mkdir ${Tmp}
+	mke2fs -m0 ${Device} $Size >/dev/null 2>&1
+	mount ${Device} ${Tmp}
 
 	echo "Creating ramdisk structure in $Tmp..."
-	cd $Tar
-	cp -r * $Tmp
+	cd ${Tar}
+	cp -r * ${Tmp}
 
 	echo "Creating dev substructure in $Tmp..."
-	mknod $Tmp/dev/console c 5 1
+	mknod ${Tmp}/dev/console c 5 1
 	#mknod $Tmp/dev/ramdisk b 1 0
 
 	echo "Unmounting and deleting $Tmp..." 
-	umount $Tmp
-	rm -rf $Tmp
+	umount ${Tmp}
+	rm -rf ${Tmp}
 
 	echo "Creating compressed ramdisk image on diskette from $Tmp..."
-	dd if=$Device bs=1k | gzip -v9 | dd of=/dev/fd0 bs=1k seek=600
+	dd if=${Device} bs=1k | gzip -v9 | dd of=/dev/fd0 bs=1k seek=600
 }
 function cat_files()
 {
 	local dir=$1
-	local files=${*#$1}
-	for f in $files; do
+	local files=`ls ${dir}`
+	for f in ${files}; do
 		echo -e "\n$dir/$f:"
-		cat $dir/$f
+		cat ${dir}/${f}
 		echo -e "<----\tend\t----"
 	done
 }
-
 function ksAfsStatus()
 {
 	service openafs-server status
@@ -1216,7 +1214,7 @@ function _kir
     COMPREPLAY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts=$(declare -F | grep ks[A-Z] | awk '{print $3}')
+    opts=$(declare -F | grep "ks[A-Z]" | awk '{print $3}')
     COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
     return 0
 }
