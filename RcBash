@@ -1,3 +1,4 @@
+#!/bin/sh
 # Login interactive shell: execute /etc/profile then ~/.bash_profile
 # Non-login interactive shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
