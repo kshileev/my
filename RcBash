@@ -368,13 +368,6 @@ function ksInitrd
     gzip -dc tmp-initrd | cpio -id
     rm tmp-initrd
 }
-
-#alias   k2w="recode koi8..CP1251 ~/txt"
-#alias   kk="consolechars --acm koi8-r --font UniCyr_8x16"
-#alias   kw="consolechars --acm cp1251 --font UniCyr_8x16"
-#alias   kd="consolechars --acm cp866 --font UniCyr_8x16"
-
-
 function ksBootOnce
 {
     echo Configure grub to boot just once
@@ -551,330 +544,12 @@ function ksSecPasswords
     #alias   0p12pub="openssl pkcs12 -clcerts -nokeys -in KirINFN.p12 -out KirINFN.pem"
     #alias   0p12pri="openssl pkcs12 -nocerts -in KirINFN.p12 -out KirPrivate.pem"
 }
-function ksAliceBuild
-{
-    unset ROOTSYS ALICE ALICE_ROOT ALICE_TARGET LD_LIBRARY_PATH LIB_MY LIB_ALICE LIB_ROOT
-
-    echo -e "\n\n\n              Installs everything needed to run AliRoot \n"
-
-    #install and build dirs
-    read -p "Enter the EXISTING dir for installation[$HOME/sw]:" DirInst;   [ "$DirInst"  = "" ] && DirInst=$HOME/sw
-    read -p "Enter EXISTING dir for building[$HOME/bld]:"        DirBuild ; [ "$DirBuild" = "" ] && DirBuild=$HOME/bld
-
-    $(touch ${DirInst}/alice/new > /dev/null 2>&1) || { echo "AliceBuild> You are not allowed to write to $DirInst/alice/"; exit 1; }
-    $(touch ${DirInst}/root/new > /dev/null 2>&1)  || { echo "AliceBuild> You are not allowed to write to $DirInst/root/";  exit 1; }
-    $(touch ${DirBuild}/new > /dev/null 2>&1)      || { echo "AliceBuild> You are not allowed to write to $DirBuild/";      exit 1; }
-    rm ${DirInst}/alice/new ${DirInst}/root/new ${DirBuild}/new
-
-    #ask for versions to be installed
-    read -p "Enter the version of AliRoot[head]:"  VerAlice             ; [ "$VerAlice" = "" ] && VerAlice=head
-    read -p "Enter the version of Geant3[head]:"   VerG3                ; [ "$VerG3"    = "" ] &&    VerG3=head
-    read -p "Enter the version of Root[head]:"     VerRoot              ; [ "$VerRoot"  = "" ] &&  VerRoot=head
-    read -p "Enter the version of Alien[v2-11]:"   VerAlien             ; [ "$VerAlien" = "" ] && VerAlien=v2-11
-    read -p "Enter the compiler[gcc]:"             Compiler             ; [ "$Compiler" = "" ] && Compiler=gcc
-    read -p "Keep the full build tree?[NO]:"       KeepTree
-
-    #construct tag options for cvs
-    [ "$VerRoot"  = "head" ] &&  RootTag="" ||  RootTag="-r $VerRoot"
-    [ "$VerG3"    = "head" ] &&    G3Tag="" ||    G3Tag="-r $VerG3"
-    [ "$VerAlice" = "head" ] && AliceTag="" || AliceTag="-r $VerAlice"
-
-    #construct directories where to build
-    DirBuildAlice=${DirBuild}/a_${VerAlice}
-       DirBuildG3=${DirBuild}/g_${VerG3}
-     DirBuildRoot=${DirBuild}/r_${VerRoot}
-    #construct destination directories
-    [ "$VerAlice" = "head" ] && VerAlice=`date +%b%d`   #if head replace by current date
-    [ "$VerRoot"  = "head" ] &&  VerRoot=`date +%b%d`   #if head replace by current date
-    DirAlice=${DirInst}/alice/${VerAlice}_r${VerRoot}_${Compiler}
-     DirRoot=${DirInst}/root/${VerRoot}_${Compiler}
-    DirAlien=${DirInst}/alien/${VerAlien}
-      DirLib=${DirInst}/lib
-
-    [ "$Compiler" = "gcc" ] && RootCompiler=linux || RootCompiler=linuxicc #this is for ROOT configure script
-
-
-    #print what will be done
-    echo "You are installing: ALICE-> $DirAlice  ROOT-> $DirRoot"
-    echo "You are building:   ALICE-> $DirBuildAlice  ROOT-> $DirBuildRoot Geant-> $DirBuildG3"
-
-
-    #ask user if all the info provided is correct
-    read -p "IS THE ABOVE CORRECT?[Yes]:" IsCorrect; [ "$IsCorrect" = "" ] && IsCorrect=Yes
-    if [ "$IsCorrect" != "Yes" ]; then
-        echo "OK, some input wrong, exiting"
-            exit 1
-    fi
-
-
-    echo;echo
-
-
-    rm -f $HOME/.cvspass
-    echo ":pserver:cvs@alisoft.cern.ch:/soft/cvsroot Ah<Z" > $HOME/.cvspass
-    echo ":pserver:cvs@root.cern.ch:/user/cvs Ah<Z"       >> $HOME/.cvspass
-
-    cd ${DirBuild}
-
-
-    if [ ! -x ${DirRoot}/bin/root.exe ]; then       #first we build and install root if it's not yet installed
-            echo "Checking out ROOT $RootTag..."
-            time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@root.cern.ch:/user/cvs co $RootTag -d `basename $DirBuildRoot` root
-            echo
-        cd $DirBuildRoot
-            echo "Configuring ROOT $RootTag..."
-        time -f "takes %E seconds" ./configure $RootCompiler --with-pythia6-uscore=SINGLE --enable-qt  --disable-pgsql  >Log
-            echo
-            echo "Building ROOT $RootTag..."
-        time -f "takes %E seconds" make >>Log 2>&1 || { echo "AliceBuild> ROOT building failed, check $DirBuildRoot/Log"; exit 1; }
-
-            mkdir -p $DirRoot
-            mv $DirBuildRoot/bin     $DirRoot
-            mv $DirBuildRoot/cint    $DirRoot
-            mv $DirBuildRoot/etc     $DirRoot
-            mv $DirBuildRoot/fonts   $DirRoot
-            mv $DirBuildRoot/icons   $DirRoot
-            mv $DirBuildRoot/include $DirRoot
-            mv $DirBuildRoot/lib     $DirRoot
-    else
-        echo "ROOT version \"$VerRoot\" is already installed";echo
-    fi
-
-    export ROOTSYS=${DirRoot}                                   #prepare root environment
-    export PATH=${ROOTSYS}/bin:/bin:/usr/bin:/usr/local/bin
-    export LD_LIBRARY_PATH=${ROOTSYS}/lib
-
-    cd ${DirBuild}
-
-    echo "Checking out G3 $G3Tag :"
-    time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@root.cern.ch:/user/cvs             co $G3Tag    -d `basename $DirBuildG3`     geant3
-    echo
-    echo "Checking out AliRoot $AliceTag :"
-    time -f "takes %E seconds" cvs -Q -z2 -d :pserver:cvs@alisoft.cern.ch:/soft/cvsroot      co $AliceTag -d `basename $DirBuildAlice`  AliRoot
-    echo
-
-    rm $HOME/.cvspass
-
-    cd $DirBuildG3
-    [ -f WithRoot_${VerRoot} ] || { echo Cleaning G3 to build with new ROOT; make clean >/dev/null 2>&1; }      #clean for new ROOT
-    echo "Building G3..."
-    $(time make > Log 2>&1) || { echo AliceBuild> G3 building failed, see $DirBuildG3/Log; exit 1; }  #build G3 with current ROOT
-    echo ^^^ Time used for building G3 ^^^;echo
-    touch WithRoot_${VerRoot}
-
-
-    export ALICE_ROOT=$DirBuildAlice
-    export ALICE_TARGET=`root-config --arch`
-    cd $DirBuildAlice
-    [ -f WithRoot_${VerRoot} ] || { echo "Cleaning AliROOT to build with new ROOT"; make clean-all >/dev/null 2>&1; } #clean for new ROOT
-    echo "Building aliroot..."
-    mkdir -p $DirBuildAlice/include
-    cp $DirBuildG3/TGeant3/TGeant3.h $DirBuildAlice/include            #TGeant3.h included by ITS,so copy it to AliRoot before building
-    $(time make >Log 2>&1) || { echo "AliceBuild> AliROOT building failed, check $DirBuildAlice/Log"; exit 1; }   #build AliRoot
-    echo ^^^ Time used for building AliROOT ^^^;echo
-    touch WithRoot_${VerRoot}                                         #indicate ROOT version which was used to build AliRoot
-
-    echo "Build libSHUTTLE..."
-    gmake all-SHUTTLE >>Log 2>&1
-
-    echo "Build libTestShuttle..."
-    cd $DirBuildAlice/SHUTTLE/TestShuttle
-    gmake >>Log 2>&1
-
-    rm -rf $DirAlice                                                                         #remove previous installation if exists
-
-    if [ -z $KeepTree ]; then
-      echo "Coping all needed soft to installation dir"
-
-      mkdir -p $DirAlice                                                                       #create new ALICE_ROOT directory
-
-
-                            cp -r $DirBuildAlice/include                 $DirAlice              #headers
-                            cp -r $DirBuildAlice/data                    $DirAlice              #galice.cuts etx
-
-    mkdir -p $DirAlice/bin; cp    $DirBuildAlice/bin/tgt_$ALICE_TARGET/* $DirAlice/bin          #executables
-    mkdir -p $DirAlice/lib; cp    $DirBuildAlice/lib/tgt_$ALICE_TARGET/* $DirAlice/lib          #AliRoot libraries
-                            cp    $DirBuildG3/lib/tgt_$ALICE_TARGET/*    $DirAlice/lib          #geant3 library
-                            cp    $DirBuildAlice/SHUTTLE/TestShuttle/*.so $DirAlice/lib         #libTestShuttle library
-
-    mkdir $DirAlice/STEER;  cp    $DirBuildAlice/STEER/*.cxx             $DirAlice/STEER        #STEER .cxx
-                            cp    $DirBuildAlice/STEER/*.h               $DirAlice/STEER        #STEER .h
-
-    mkdir $DirAlice/ITS;    cp -r $DirBuildAlice/ITS/Calib               $DirAlice/ITS          #ITS CDB
-                            cp -r $DirBuildAlice/ITS/Align               $DirAlice/ITS          #ITS Align
-
-    mkdir $DirAlice/TPC;    cp    $DirBuildAlice/TPC/*.root              $DirAlice/TPC          #TPC config files
-                            cp -r $DirBuildAlice/TPC/Calib               $DirAlice/TPC          #TPC CDB
-                            cp -r $DirBuildAlice/TPC/Align               $DirAlice/TPC          #TPC Align
-
-    mkdir $DirAlice/TRD;    cp -r $DirBuildAlice/TRD/Calib               $DirAlice/TRD          #TRD CDB
-                            cp -r $DirBuildAlice/TRD/Align               $DirAlice/TRD          #TRD Align
-
-    mkdir $DirAlice/TOF;    cp -r $DirBuildAlice/TOF/CDB                 $DirAlice/TOF          #TOF CDB
-                            cp -r $DirBuildAlice/TOF/Align               $DirAlice/TOF          #TOF Align
-
-                            cp -r  $DirBuildAlice/EVE                    $DirAlice              #EVE all
-                            rm -rf $DirAlice/EVE/tgt_*
-
-                            cp -r  $DirBuildAlice/HMPID                  $DirAlice              #HMPID all
-                            rm -rf $DirAlice/HMPID/tgt_*
-                            cp -r  $DirBuildAlice/PWG2                   $DirAlice
-
-    else
-      echo Coping all build tree...
-      cp -r $DirBuildAlice $DirAlice
-      mv $DirAlice/bin/tgt_$ALICE_TARGET/* $DirAlice/bin ; rm -rf $DirAlice/bin/tgt_$ALICE_TARGET
-      mv $DirAlice/lib/tgt_$ALICE_TARGET/* $DirAlice/lib ; rm -rf $DirAlice/lib/tgt_$ALICE_TARGET
-      cp $DirBuildG3/lib/tgt_$ALICE_TARGET/*    $DirAlice/lib          #geant3 library
-      cp $DirBuildAlice/SHUTTLE/TestShuttle/*.so $DirAlice/lib
-    fi
-
-    echo $DirBuildAlice > $DirAlice/WhereBuild                                               #file to be used by AliceStatus
-
-    cd $DirAlice/bin
-    #create b shell script to start batch processes
-    cat > b <<EOF
-    if [ -z \$1 ]; then
-       echo "Usage: b Nevents [Debug] [ConfigFile]"
-       exit
-    fi
-
-    if [ -z \$2 ]; then
-       Debug=0
-    else
-       Debug=1
-    fi
-
-    if [ -z \$3 ]; then
-       ConfigFile=\$(pwd)/Config.C
-    else
-       ConfigFile=\$3
-    fi
-
-    Log=Log.\`basename \$ConfigFile\`
-
-    Hbatch="\$(pwd)/Hbatch.C(\$1,\$Debug,\"\$ConfigFile\")"
-
-    echo Process \$1 event from \$ConfigFile  Debug=\$Debug, log to \$Log
-    nohup \$ALICE_ROOT/bin/aliroot -n -b -q \$Hbatch > \$Log  2>&1 &
-    EOF
-
-    chmod +x b
-    #end of creation of b
-
-    echo;echo;echo
-    echo "AliceBuild>        OK. OK. OK."
-}
-function ksAliceConf
-{
-    if [ $# == "0" ]; then # print help message
-        echo "Configure AliRoot-Root-Geant3-Alien chain, USAGE:"
-        echo "AliceConf /dir AliceVer RootVer"
-        echo "AliceConf /dir AlienVer"
-        echo
-        echo "---AliRoot version(s) currently available:---"
-    [ -d ${MY_CERN_DIR} ] && (echo In ${MY_CERN_DIR}/alice: ;ls ${MY_CERN_DIR}/alice)
-        echo "---Root    version(s) currently available:---"
-    [ -d ${MY_CERN_DIR} ] && (echo In ${MY_CERN_DIR}/root: ;ls ${MY_CERN_DIR}/root)
-        echo
-        echo "---Current                  configuration:---"
-    [ -x ${ROOTSYS}/bin/root-config ] && echo "ROOTSYS     --->$ROOTSYS version `$ROOTSYS/bin/root-config --version`" \
-                                || echo "ROOTSYS     --->$ROOTSYS"
-        echo "ROOTGUI     --->${ROOTGUI}"
-        echo "ALICE_ROOT  --->${ALICE_ROOT}"
-        echo "ALICE_TARGET--->${ALICE_TARGET}"
-        echo
-        echo "PATH        --->${PATH}"
-        echo "MY_PATH     --->${MY_PATH}"
-        echo
-        echo "LD_LIB_PATH --->${LD_LIBRARY_PATH}"
-        echo
-        echo "ALIEN_ROOT  --->${ALIEN_ROOT}"
-        echo "GSHELL      --->${GSHELL_ROOT}"
-        echo "GLOBUS      --->${GLOBUS_LOCATION}"
-        echo "X509 DIR    --->${X509_CERT_DIR}"
-        echo "X509 CER    --->${X509_USER_CERT}"
-        echo "X509 KEY    --->${X509_USER_KEY}"
-        echo "QTDIR       --->${QTDIR}"
-        echo "MOOD        --->${MOOD_SITE}"
-        echo "--------------------------------"
-        return
-    fi
-
-    alias cvsa="cvs -q -d :pserver:cvs@alisoft.cern.ch:/soft/cvsroot -z 3"
-    alias cvsr="cvs -q -d :pserver:cvs@root.cern.ch:/user/cvs -z 3"
-    alias dc="rm -rf Log* gphysi* fort* ZZZ*"
-    alias dr="rm -rf *.root *.dat raw*"
-
-    unset ALICE_ROOT ALICE_TARGET ALIEN_ROOT ROOTSYS GLOBUS_LOCATION GSHELL_ROOT X509_CERT_DIR
-    export PATH=${MY_PATH}
-    [ $1 == "OFF" ]   && { echo "AliceConf> Switch off the enviroument"; return; }
-    [ -d $1 ]         || { echo "AliceConf> --ERROR-->Directory $1 does not exist"; return; }
-
-    [ $# == "2" ] && { ALIEN_ROOT=$1/alien/$2; ROOTSYS=$ALIEN_ROOT/root; } || { ALICE_ROOT=$1/alice/$2_r$3_gcc; ROOTSYS=$1/root/$3_gcc; }
-
-
-    [ -d ${ROOTSYS} ]       || { echo "AliceConf>--ERROR-- There is no ROOT in  $ROOTSYS"; unset ROOTSYS; return; }
-    LIB_MY=/tmp/${USER}_lib_`$ROOTSYS/bin/root-config --arch` ;  [ ! -d ${LIB_MY} -a `id -nu` != "root" ] && mkdir ${LIB_MY}
-    export ROOTSYS LIB_MY LD_LIBRARY_PATH=$LIB_MY:$ROOTSYS/lib #LIB_MY is used in HmpidMake
-    export ROOTGUI=native
-    export PATH=${ROOTSYS}/bin:${MY_PATH}
-
-    alias  dk="ls -l $LIB_MY"
-    alias  aa="export ALICE_ROOT=.;export ALICE_TARGET=`${ROOTSYS}/bin/root-config --arch`;" # alias to update alice
-    alias avs="export ALIVERBOSE=YES"; alias avr="unset ALIVERBOSE"
-    alias cdr="cd ${ROOTSYS}"
-    alias   r="${ROOTSYS}/bin/root.exe"
-    alias  rv="${ROOTSYS}/bin/root-config --version --arch"
-    alias  rf="${ROOTSYS}/bin/root-config --features"
-    alias rqt="export ROOTGUI=qt"
-    alias  rn="export ROOTGUI=native"
-
-    echo "Root $ROOTSYS OK."
-
-    [ -d ${ALICE_ROOT} ]     || { echo "AliceConf>--ERROR-- There is no AliRoot in $ALICE_ROOT"; unset ALICE_ROOT; return; }
-
-    export ALICE_ROOT LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ALICE_ROOT}/lib
-
-    alias a="$ALICE_ROOT/bin/aliroot"
-    alias b="$ALICE_ROOT/bin/b"
-    alias am="$ALICE_ROOT/bin/aliroot Hmenu.C"
-    alias cda="cd $ALICE_ROOT"
-    alias h="$ROOTSYS/bin/root.exe Hlib.C"
-    alias hm="$ROOTSYS/bin/root.exe Hlib.C Hmenu.C"
-    alias hc="$ROOTSYS/bin/root.exe -n Hconfig.C"
-    alias hd="$ROOTSYS/bin/root.exe -n Hlib.C Hdisp.C"
-    echo "AliRoot $ALICE_ROOT OK."
-}
 function ksCheckOs
 { # we're running on deb based or rpm based OS?
   local deb=/etc/debian_version
   local rpm=/etc/redhat-release
   [ -f ${deb} ] && { echo -n "It's DEBIAN version: " ; cat ${deb}; return 1; }
   [ -f ${rpm} ] && { echo -n "It's RPM version: "    ; cat ${rpm}; return -1; }
-}
-function ksAliceStatus
-{
-    local Detectors="STEER ITS TPC TRD TOF PHOS FMD START MUON RICH"
-
-    if [ "$1" == "" ]; then
-	echo This script scans over ALIROOT build directory structure for some particulare feature. Please provide it
-    exit -1
-    fi
-
-    cd `cat ${ALICE_ROOT}/WhereSrc`  #go to aliroot build directory
-
-    echo Checking for feature: $1 in directory `pwd`
-
-    for det in ${Detectors}; do
-	cd ${det}
-	if `grep $1 * > /dev/null 2>&1` ; then   #returns the string found
-	    echo ${det}: Yes
-	else
-	    echo ${det}: No
-	fi  
-	cd ..
-    done
 }
 function ksBuildDisketteRouter
 {
@@ -1149,9 +824,9 @@ function ksTailLogAfs
 {
     cd /var/log
     if ksCheckOs; then
-	tail -F daemon.log user.log autgh.log debug kern.log dmesg messages\
-	    kerveros/{krb5kdc,kadmin,krb2lib}.log \
-	    openafs/{Bos,File,Salvage,VL,Volser}Log
+	tail -F daemon.log user.log autgh.log debug kern.log dmesg messages \
+	    kerveros/krb5kdc.log kerveros/kadmin.log kerveros/krb2lib.log \
+	    openafs/BosLog openafs/FileLog openafs/SalvageLog openafs/VLLog openafs/VolserLog
     else
 	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log	
     fi
@@ -1216,12 +891,10 @@ function SpecialNotRun
     ksIntallKernel2Remote
     ksRemoteDeploy
 
-    ksAliceBuild
-    ksAliceConf
-    ksAliceStatus
 
     ksAfsStatus
-    
+    ksTailLogAfs
+
     ksRef
     ksRefHex
     ksRefMorze
