@@ -1,18 +1,17 @@
 #!/bin/sh
-# Login interactive shell: exe${setcolor_normal}e then ~/.bash_profile
-# Non-lo${MY_CSCOPE_DIR}e shell: execute ~/.bashrc only
+# Login interactive shell: /etc/bash then ~/.bash_profile
+# Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
-[ -z "PS1" ] && return						#nothing to do for non interactive shell
+[ -z "PS1" ] && return					#nothing to do for non interactive shell
 PS1="\!:\W> "							#prompt: 22:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
-
-export MY=~/Dropbox/my						#used by ALICE scripts
-export MY_CERN_DIR=$HOME/cern
-export MY_CSCOPE_DIR=/tmp/${USER}_cscope				#tmp dir where cscope stores the output
+export MY_TMP_DIR=/tmp/kshileev
+mkdir -p ${MY_TMP_DIR}
+export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
+export LESSHISTFILE=${MY_TMP_DIR}/LessHist
+export HISTFILE=${MY_TMP_DIR}/BashHist
 export ROOTGUI=native
-export LESSHISTFILE=/tmp/${USER}_LessHist
-export HISTFILE=/tmp/${USER}_BashHist
 export HISTSIZE=5000
 export HISTCONTROL=ignoreboth					#don't add duplicated line and empty space
 #shopt  -s histappend						#append to history file
@@ -53,7 +52,7 @@ alias	m='less'
 alias	p="pstree -h"
 alias	pw="ps uxwf"
 alias	q='. ~/buzzoola/deploy/provision.sh'
-alias	src='[ -f ~/.bashrc ] && . ~/.bashrc'
+alias	src=". $(find ~ -name RcBash)"
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 
@@ -96,7 +95,44 @@ function _enok()
 	${setcolor_normal}
 	echo
 }
+function ksMacRandom()
+{
+    echo $(od -An -N6 -tx1 /dev/urandom | sed -e 's/^  *//' -e 's/  */:/g' -e 's/:$//' -e 's/^\(.\)[13579bdf]/\10/')
+}
+function ksVirtVm()
+{
+    local vm_name='build_server'
+    local vm_disk_format=raw
+    local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
+    local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
 
+    virt-install --n ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc\
+        --os-variant ubuntutrusty \
+        --disk ${vm_iso_path},device=cdrom \
+        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format} \
+        --network=default,model=virtio
+}
+function ksVirt()
+{
+    local virsh_command
+    echo Virtual machines: &&  virsh list --all
+    echo Virtual networks: &&  virsh net-list --all
+    read -p 'Choose command [kill-all]: ' virsh_command
+    case ${virsh_command} in
+	    kill-all)
+	        virsh list --all | grep lab2 | cut -d " " -f7 | xargs -n 1 virsh undefine
+	        virsh net-list --all | grep lab2 | cut -d " " -f2 | xargs -n1 virsh net-undefine
+	    ;;
+	    new_vm) ksVirtVm ;;
+	    *)  echo Wrong command, nothing to do! ;;
+    esac
+}
+function ksInfo()
+{   # shows usefull info about unknonw command provided as argument
+    local cmd_name=$1
+    local cmd_full_path=`which ${cmd_name}`
+    file ${cmd_full_path}
+}
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
 WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
