@@ -55,6 +55,7 @@ alias	q='. ~/buzzoola/deploy/provision.sh'
 alias	src=". $(find ~ -name RcBash)"
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
+alias   v='ksVirtStatus'
 
 ColorNormal="\\033[0;39m"
 
@@ -106,17 +107,21 @@ function ksVirtVm()
     local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
     local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
 
-    virt-install --n ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc\
+    virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
         --os-variant ubuntutrusty \
-        --disk ${vm_iso_path},device=cdrom \
-        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format} \
-        --network=default,model=virtio
+        --cdrom ${vm_iso_path} \
+        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}
+}
+function ksVirtStatus()
+{
+    echo Virtual machines: &&  virsh list --all
+    echo Virtual networks: &&  virsh net-list --all
+    echo Bridges: && brctl show
 }
 function ksVirt()
 {
+    ksVirtStatus
     local virsh_command
-    echo Virtual machines: &&  virsh list --all
-    echo Virtual networks: &&  virsh net-list --all
     read -p 'Choose command [kill-all]: ' virsh_command
     case ${virsh_command} in
 	    kill-all)
