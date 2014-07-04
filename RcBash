@@ -902,10 +902,9 @@ function ksSshKey
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
 	    add-public)
-	        local ssh_auth_file='~/.ssh/authorized_keys'
 	        mkdir -p ~/.ssh
-	        [ -f ${ssh_auth_file} ] || touch ${ssh_auth_file}
-	        [ `grep "${kir_vaio_pub}" ${ssh_auth_file}` ] || echo ${kir_vaio_pub} >> ${ssh_auth_file}
+	        [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
+	        [ `grep "${kir_vaio_pub}" ~/.ssh/authorized_keys` ] || echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
 	    ;;
 	    add-private)
             [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
