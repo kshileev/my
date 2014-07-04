@@ -904,7 +904,8 @@ function ksSshKey
 	    add-public)
 	        local ssh_auth_file='~/.ssh/authorized_keys'
 	        mkdir -p ~/.ssh
-	        [ `grep ${kir_vaio_pub} ${ssh_auth_file}` ] || echo ${kir_vaio_pub} >> ${ssh_auth_file}
+	        [ -f ${ssh_auth_file} ] || touch ${ssh_auth_file}
+	        [ `grep "${kir_vaio_pub}" ${ssh_auth_file}` ] || echo ${kir_vaio_pub} >> ${ssh_auth_file}
 	    ;;
 	    add-private)
             [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
