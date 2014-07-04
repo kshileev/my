@@ -24,23 +24,11 @@ export ARTISTIC_STYLE_OPTIONS=${MY}/RcAstyle
 export LD_LIBRARY_PATH=$HOME
 [ -d $HOME/ElasticLoadBalancing ] && AWS_ELB_HOME=$HOME
 alias   a='alias'
-alias	all='ssh-add ~/.ssh/KirVaio; ssh-add ~/.ssh/MrBuzzoolaMain; . ~/.ssh/novarc.aws'
 alias	df='df -h'
 alias	dm='dmesg'
 alias	du='du -h'
 alias	e='echo'
-alias	r='root -l'
-alias	k='ksLoadKey'
 alias   grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
-alias   ga='git add'
-alias	gs='git status'
-alias	gr='git remote -v'
-alias   gc='git commit -m'
-alias   gp='git push'
-alias	gu='git pull up master'
-alias	gd='git diff'
-alias	gds='git diff --staged'
-alias   gco='git config --global -l'
 alias	h='history'
 alias	l='ls -F --color=tty'
 alias	l.='ls -dh .* --color=auto'
@@ -912,7 +900,7 @@ function ksSshKey
     local commands=('add-public' 'add-private')
     [ -z ${ssh_command} ] &&  ssh_command=$(_ksGetInput ${commands[@]})
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
-    case ${ssh_command:-${ssh_default_command}} in
+    case ${ssh_command} in
 	    add-public)
 	        local ssh_auth_file='~/.ssh/authorized_keys'
 	        mkdir -p ~/.ssh
