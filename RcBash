@@ -8,6 +8,7 @@ PS1="\!:\W> "							#prompt: 22:dirname>
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_TMP_DIR=/tmp/kshileev
 export MY_BASH_RC=$(find ~ -name RcBash)
+export MY_DIR=$(dirname ${MY_BASH_RC})
 mkdir -p ${MY_TMP_DIR}
 export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
@@ -945,6 +946,13 @@ function ksSshKey
 	    ;;
 	    *)  echo Wrong command, nothing to do! ;;
     esac
+}
+function ksJenkins
+{
+    wget -q -O - http://pkg.jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -
+    echo deb http://pkg.jenkins-ci.org/debian binary/ | sudo tee -a /etc/apt/sources.list
+    sudo apt-get update
+    sudo apt-get install jenkins
 }
 function SpecialNotRun
 {
