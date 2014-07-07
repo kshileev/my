@@ -7,6 +7,7 @@ PS1="\!:\W> "							#prompt: 22:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_TMP_DIR=/tmp/kshileev
+export MY_BASH_RC=$(find ~ -name RcBash)
 mkdir -p ${MY_TMP_DIR}
 export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
@@ -40,7 +41,8 @@ alias	m='less'
 alias	p="pstree -h"
 alias	pw="ps uxwf"
 alias	q='. ~/buzzoola/deploy/provision.sh'
-alias	src=". $(find ~ -name RcBash)"
+alias	src=". ${MY_BASH_RC}"
+alias   ee="vim ${MY_BASH_RC}"
 alias	sslt='ps auxw |grep ssh |grep -v grep'
 alias	u='cd ..'
 alias   v='ksVirtStatus'
@@ -115,15 +117,26 @@ function ksVirtStatus()
 function ksVirt()
 {
     ksVirtStatus
-    local virsh_command
-    local default_command='kill-all'
-    read -p "Choose command [${default_command}]: " virsh_command
-    case ${virsh_command:-${default_command}} in
+
+    local commands=('devstack-config' 'kill-all' 'new-vm')
+    local virsh_command=$(_ksGetInput ${commands[@]})
+    case ${virsh_command} in
 	    kill-all)
 	        virsh list --all | cut -d " " -f7 | grep -v ^---- | xargs -n 1 virsh undefine
 	        virsh net-list --all | cut -d " " -f2 | grep -v ^---- | xargs -n1 virsh net-undefine
 	    ;;
-	    new_vm) ksVirtVm ;;
+            devstack-config)
+                local conf_file_name=local.conf
+                echo '[[local|localrc]]'        > ${conf_file_name}
+                echo ADMIN_PASSWORD=password   >> ${conf_file_name}
+                echo MYSQL_PASSWORD=password   >> ${conf_file_name}
+                echo RABBIT_PASSWORD=password  >> ${conf_file_name}
+                echo SERVICE_PASSWORD=password >> ${conf_file_name}
+                echo SERVICE_TOKEN=tokentoken  >> ${conf_file_name}
+                echo NEUTRON_REPO=https://github.com/CiscoSystems/neutron.git >> ${conf_file_name}
+                echo ${conf_file_name} created
+            ;;
+	    new-vm) ksVirtVm ;;
 	    *)  echo Wrong command, nothing to do! ;;
     esac
 }
