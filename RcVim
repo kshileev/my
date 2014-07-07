@@ -9,7 +9,7 @@ set laststatus=2	"make visiable the current file name
 set sw=4		"tab=4 symbols
 set dir=/tmp		"swp file is created here
 set cindent smartindent
-set mouse=a            "use mouse in hyperlinks
+"set mouse=a            "use mouse in hyperlinks
 set path=$HOME/hg/kshileev/include,$HOME/hg/kshileev/mock/include,/usr/include "open include files from here by gf
 "set bg=dark            "different color schema optimised for dark background
 "set wrap		"autowrap long lines

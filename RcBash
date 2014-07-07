@@ -119,21 +119,43 @@ function ksVirt()
 {
     ksVirtStatus
 
-    local commands=('devstack-config' 'kill-all' 'new-vm')
-    local virsh_command=$(_ksGetInput ${commands[@]})
+    local virsh_command=$(ksGetInput 'kill-all new-vm')
     case ${virsh_command} in
         kill-all)
 	         virsh list --all | cut -d " " -f7 | grep -v ^---- | xargs -n 1 virsh undefine
 	         virsh net-list --all | cut -d " " -f2 | grep -v ^---- | xargs -n1 virsh net-undefine
 	       ;;
         new-vm) ksVirtVm ;;
-	     *)  echo Wrong command, nothing to do! ;;
+	     *)  echo Command ${virsh_command} is wrong, nothing to do! ;;
+    esac
+}
+function ksGetInput()
+{
+    local commands=$1
+    local default_command=$(echo ${commands} | cut -d ' ' -f1)
+    local input
+    read -p "Possible commands: ${commands} [default=${default_command}]: " input
+    echo ${input:-${default_command}}
+}
+function ksNova()
+{
+    local nova_command=${1:-$(ksGetInput 'config status')}
+    case ${nova_command} in
+        config)
+            export OS_TENANT_NAME=tenant
+            export OS_USERNAME=user
+            export OS_PASSWORD=password
+            export OS_AUTH_URL='http://localhost:5000/v2.0'
+        ;;
+        status)
+            nova list
+        ;;
+        *) echo Command ${nova_command} is wrong, nothing to do ;;
     esac
 }
 function ksDevstack()
 {
-    local commands=('config' 'result')
-    local devstack_command=$(_ksGetInput ${commands[@]})
+    local devstack_command=$(ksGetInput 'config result')
     case ${devstack_command} in
         devstack-config)
             local conf_file_name=local.conf
@@ -154,6 +176,7 @@ function ksDevstack()
         result)
             testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
         ;;
+        *) echo Command ${devstack_command} is wrong, nothing to do ;;
     esac
 }
 function ksInfo()
@@ -914,20 +937,9 @@ includefile /etc/ntp/crypto/pw
 keys /etc/ntp/keys
 EOF
 }
-function _ksGetInput
-{
-    local commands=("${@}")
-    local default_command=${commands[0]}
-    local commands_string=$(echo ${commands[@]})
-    local input
-    read -p "Possible commands ${commands_string} default [${default_command}]: " input
-    echo ${input:-${default_command}}
-}
 function ksSshKey
 { # manipulate with ssh keys
-    local ssh_command=$1
-    local commands=('add-public' 'add-private')
-    [ -z ${ssh_command} ] &&  ssh_command=$(_ksGetInput ${commands[@]})
+    local ssh_command=${1:-$(ksGetInput 'add-public add-private')}
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
 	    add-public)
