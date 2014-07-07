@@ -109,8 +109,8 @@ function ksVirtVm()
 }
 function ksVirtStatus()
 {
-    echo Virtual machines: &&  virsh list --all
-    echo Virtual networks: &&  virsh net-list --all
+    echo Virtual machines: &&  sudo virsh list --all
+    echo Virtual networks: &&  sudo virsh net-list --all
     echo Bridges: && brctl show
     ksPrintSeparator
 }
@@ -121,23 +121,38 @@ function ksVirt()
     local commands=('devstack-config' 'kill-all' 'new-vm')
     local virsh_command=$(_ksGetInput ${commands[@]})
     case ${virsh_command} in
-	    kill-all)
-	        virsh list --all | cut -d " " -f7 | grep -v ^---- | xargs -n 1 virsh undefine
-	        virsh net-list --all | cut -d " " -f2 | grep -v ^---- | xargs -n1 virsh net-undefine
-	    ;;
-            devstack-config)
-                local conf_file_name=local.conf
-                echo '[[local|localrc]]'        > ${conf_file_name}
-                echo ADMIN_PASSWORD=password   >> ${conf_file_name}
-                echo MYSQL_PASSWORD=password   >> ${conf_file_name}
-                echo RABBIT_PASSWORD=password  >> ${conf_file_name}
-                echo SERVICE_PASSWORD=password >> ${conf_file_name}
-                echo SERVICE_TOKEN=tokentoken  >> ${conf_file_name}
-                echo NEUTRON_REPO=https://github.com/CiscoSystems/neutron.git >> ${conf_file_name}
-                echo ${conf_file_name} created
-            ;;
-	    new-vm) ksVirtVm ;;
-	    *)  echo Wrong command, nothing to do! ;;
+        kill-all)
+	         virsh list --all | cut -d " " -f7 | grep -v ^---- | xargs -n 1 virsh undefine
+	         virsh net-list --all | cut -d " " -f2 | grep -v ^---- | xargs -n1 virsh net-undefine
+	       ;;
+        new-vm) ksVirtVm ;;
+	     *)  echo Wrong command, nothing to do! ;;
+    esac
+}
+function ksDevstack()
+{
+    local commands=('config' 'result')
+    local devstack_command=$(_ksGetInput ${commands[@]})
+    case ${devstack_command} in
+        devstack-config)
+            local conf_file_name=local.conf
+            echo '[[local|localrc]]'        > ${conf_file_name}
+            echo ADMIN_PASSWORD=password   >> ${conf_file_name}
+            echo MYSQL_PASSWORD=password   >> ${conf_file_name}
+            echo RABBIT_PASSWORD=password  >> ${conf_file_name}
+            echo SERVICE_PASSWORD=password >> ${conf_file_name}
+            echo SERVICE_TOKEN=tokentoken  >> ${conf_file_name}
+            echo TEMPEST_BRANCH=ipv6 >> ${conf_file_name}
+            echo MGMT_NET=6 >> ${conf_file_name}
+            echo IP_VERSION=6 >> ${conf_file_name}
+            echo IPV6_RA_MODE=slaac >> ${conf_file_name}
+            echo IPV6_ADDRESS_MODE=slaac >> ${conf_file_name}
+
+            echo ${conf_file_name} created
+        ;;
+        result)
+            testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
+        ;;
     esac
 }
 function ksInfo()
