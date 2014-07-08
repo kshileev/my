@@ -3,7 +3,7 @@
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
-PS1="\!:\W> "							#prompt: 22:dirname>
+PS1="\!:\W> "						#prompt: 22:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_TMP_DIR=/tmp/kshileev
@@ -13,43 +13,17 @@ mkdir -p ${MY_TMP_DIR}
 export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
 export HISTFILE=${MY_TMP_DIR}/BashHist
-export ROOTGUI=native
 export HISTSIZE=5000
-export HISTCONTROL=ignoreboth					#don't add duplicated line and empty space
-#shopt  -s histappend						#append to history file
-export TC_INSTALL_DIR=/usr/local/terracotta/current
+export HISTCONTROL=ignoreboth
 export X509_USER_CERT=${MY}/KirINFN.pem		#certificate used by globus
-export X509_USER_KEY=${MY}/KirPrivate.pem   #private key for this certificate
+export X509_USER_KEY=${MY}/KirPrivate.pem	#private key for this certificate
 export SIMPLE_BACKUP_SUFFIX=.kirshil		#used by patch
-export DISTCC_HOSTS='artemis.sw.ru 10.30.23.114 10.0.70.80'	#used by make -j
-export ARTISTIC_STYLE_OPTIONS=${MY}/RcAstyle
+export DISTCC_HOSTS='1.1.1.1 2.2.2.2 3.3.3.3'	#used by make -j
+export ARTISTIC_STYLE_OPTIONS=${MY_DIR}/RcAstyle
 export LD_LIBRARY_PATH=$HOME
+export ROOTGUI=native
 [ -d $HOME/ElasticLoadBalancing ] && AWS_ELB_HOME=$HOME
-alias   a='alias'
-alias	df='df -h'
-alias	dm='dmesg'
-alias	du='du -h'
-alias	e='echo'
-alias   grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
-alias	h='history'
-alias	l='ls -F --color=tty'
-alias	l.='ls -dh .* --color=auto'
-alias	ll='ls -Flih --color=auto'
-alias	ll.='ls -Fldih .* --color=auto'
-alias	ld='ls -lad --color=auto'
-alias	ls='ls --color=auto'
-alias	m='less'
-alias	p="pstree -h"
-alias	pw="ps uxwf"
-alias	q='. ~/buzzoola/deploy/provision.sh'
-alias	src=". ${MY_BASH_RC}"
-alias   ee="vim ${MY_BASH_RC}"
-alias	sslt='ps auxw |grep ssh |grep -v grep'
-alias	u='cd ..'
-alias   v='ksVirtStatus'
-
 ColorNormal="\\033[0;39m"
-
 ColorBlack="\\033[0;30m";     ColorDarkGray="\\033[1;30m"
 ColorBlue="\\033[0;34m";      ColorLightBlue="\\033[1;34m"
 ColorGreen="\\033[0;32m";     ColorLightGreen="\\033[1;32m"
@@ -63,6 +37,8 @@ setcolor_caption="echo -en \\033[1;34m"
 setcolor_success="echo -en \\033[1;32m"
 setcolor_failure="echo -en \\033[1;31m"
 setcolor_normal="echo -en \\033[0;39m"
+
+ksAliasDefine
 
 _ecount=0
 function _e()
@@ -142,10 +118,12 @@ function ksNova()
     local nova_command=${1:-$(ksGetInput 'config status')}
     case ${nova_command} in
         config)
-            export OS_TENANT_NAME=tenant
-            export OS_USERNAME=user
+            local devstack_config=$(find ~ -wholename '*/devstack/openrc')
+            export OS_TENANT_NAME=demo
+            export OS_USERNAME=demo
             export OS_PASSWORD=password
             export OS_AUTH_URL='http://localhost:5000/v2.0'
+	    [ -z ${devstack_config} ] || source ${devstack_config}
         ;;
         status)
             nova list
@@ -478,13 +456,35 @@ function ksRusTerm
     #alias   0xk='xterm -fn -misc-fixed-medium-r-normal--14-130-75-75-c-70-koi8-r&'
     #alias   0xw='xterm -fn -urw-courier-medium-r-normal--0-0-0-0-m-0-microsoft-cp1251'
 }
-function ksAliasDefine
+function ksAliasDefine()
 {
-	echo Defines aliases
-	echo pt di ki
-	alias   pt='patch -p1 -b -z .kshileev'
-	alias   di='gendiff . .kshileev > ~/kshileev.diff-xx-xxxx-`date +%Y%m%d`'
-	alias   ki='find . -name *.kshileev'
+    echo Defines aliases
+    alias pt='patch -p1 -b -z .kshileev'
+    alias di='gendiff . .kshileev > ~/kshileev.diff-xx-xxxx-`date +%Y%m%d`'
+    alias ki='find . -name *.kshileev'
+    alias a='alias'
+    alias df='df -h'
+    alias dm='dmesg'
+    alias du='du -h'
+    alias e='echo'
+    alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+    alias h='history'
+    alias l='ls -F --color=tty'
+    alias l.='ls -dh .* --color=auto'
+    alias ll='ls -Flih --color=auto'
+    alias ll.='ls -Fldih .* --color=auto'
+    alias ld='ls -lad --color=auto'
+    alias ls='ls --color=auto'
+    alias m='less'
+    alias p="pstree -h"
+    alias pw="ps uxwf"
+    alias q='. ~/buzzoola/deploy/provision.sh'
+    alias src=". ${MY_BASH_RC}"
+    alias ee="vim ${MY_BASH_RC}"
+    alias sslt='ps auxw |grep ssh |grep -v grep'
+    alias u='cd ..'
+    alias v='ksVirtStatus'
+
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
     #alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
@@ -493,8 +493,6 @@ function ksAliasDefine
     #alias   0vztc='echo "BASE<<4+1"; cat /var/run/vz_tc_base; cat /var/run/vz_tc_classes; tc filter show dev eth0 parent 2:'
     #alias   0vzl='vzlist -a -o ctid,hostname,ip,numproc,ostemplate'
     #alias   0vzst='vzctl set 101 --hostname changename '
-#    alias   goc='ssh -X -2 kir@lxplus.cern.ch'
-#    alias   goi='ssh -X -2 kir@al20.inr.ru'
 #    alias   0gos='sshpass -p girl:click.bravo ssh -R 7777:localhost:22 russup@support.swsoft'
 #    alias   0gred='sshpass -p 1q2w3e ssh kir@red.dragon.gdc.mirantis.sar'
 #    alias   0gblu='sshpass -p 1q2w3e ssh kir@blue.dragon.gdc.mirantis.sar'
@@ -559,7 +557,7 @@ subnet 10.0.0.0 netmask 255.255.255.0 {
   next-server 10.0.0.10;
   filename "pxelinux.0";
 }
-EOF 
+EOF
 }
 function ksGenClass
 {
@@ -576,8 +574,8 @@ function ksGenClass
 #include <$Base.h>
 
 class ${Class} : public ${Base}
-{            
-public:    
+{
+public:
     ${Class}();
    ~${Class}();
 protected:
@@ -603,20 +601,33 @@ ${Class}::~${Class}()
   PrintDebugStop("dtor");
   return;
 }
-EOF 
+EOF
 }
 function PingNode
 {
    ping -c 1 $1 > /dev/null 2>&1
    [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
 }
-function ksRemoteDeploy
+function ksMyEnvDeploy()
 {
-    grep -v ^127 /etc/hosts | grep ^[1-2]
-    local Node=l321
-    read -p "Choose node where to deploy [$Node]: " Node; [ -z ${Node} ] && Node=l321
-    echo "Deploing to ${Node}:"
-    scp -p ~/.bashrc ~/.bash_profile ~/.vimrc localadmin@${Node}:
+    local my_env_command=$(ksGetInput 'local remote')
+    case ${my_env_command} in
+    local)
+	    echo "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC} " >> ~/.bashrc
+	    [ -f ~/.vimrc ] && cp  ~/.vimrc ~/VimRcToCheck
+	    ln -s ${MY_VIM_RC} ~/.vimrc
+	;;
+    remote)
+	grep -v ^127 /etc/hosts | grep ^[1-2]
+	local Node
+	read -p "Choose node where to deploy: " Node
+	echo "Deploing to ${Node}:"
+	scp -p ${MY_BASH_RC} ~/.bash_profile ${MY_VIM_RC} localadmin@${Node}:
+	;;
+    *)
+	echo Command ${my_env_comand} is wrong, nothing to do
+	;;
+    esac
 }
 function ksSecPasswords
 {
@@ -651,10 +662,10 @@ function ksBuildDisketteRouter
 	Device=/dev/ram
 
 	if [ ! -f ${Tar}/etc/rc.router ]; then
-		echo "No $Tar file" 
+		echo "No $Tar file"
 	exit -1
-	fi  
- 
+	fi
+
 	echo "Coping linux kernel..."
 	dd if=/usr/src/linux/arch/i386/boot/bzImage of=/dev/fd0 bs=1k
 	echo "Force kernel to use diskette as root device"
@@ -678,7 +689,7 @@ function ksBuildDisketteRouter
 	mknod ${Tmp}/dev/console c 5 1
 	#mknod $Tmp/dev/ramdisk b 1 0
 
-	echo "Unmounting and deleting $Tmp..." 
+	echo "Unmounting and deleting $Tmp..."
 	umount ${Tmp}
 	rm -rf ${Tmp}
 
@@ -700,10 +711,9 @@ function ksAfsStatus()
 	service openafs-server status
 	service openafs-client status
 	echo -e "\n\n**\t**\tSTATUS:\t**\t**\n"
-	
 	echo ++++++++++++++++++++Server:
-	ls -F "/usr/afs/{etc,db,logs,local}*"; 	files='ThisCell CellServDB'; 	cat_files /usr/afs/etc ${files}
-					files='BosConfig'; 		cat_files /usr/afs/local ${files}
+	ls -F "/usr/afs/{etc,db,logs,local}*";	files='ThisCell CellServDB';	cat_files /usr/afs/etc ${files}
+					files='BosConfig';		cat_files /usr/afs/local ${files}
 	echo ++++++++++++++++++++Client:
 	ls -F /usr/vice/*; files='ThisCell CellServDB.local cacheinfo'; cat_files /usr/vice/etc ${files}
 
@@ -711,12 +721,12 @@ function ksAfsStatus()
 	ls -F /vicepa/
 
 	echo -e "**\t**\tFINISHED\t**\t**"
-	#echo BOS status:; 	bos status localhost -localauth
-	#echo BOS users:; 	bos listusers localhost -localauth
-	#echo BOS hosts:; 	bos listhosts localhost -localauth
-	#echo BOS keys:; 	bos listkeys localhost -localauth
-	echo asetkey:; 		asetkey list
-	#echo VOS volumes:; 	vos listvol localhost -localauth
+	#echo BOS status:;	bos status localhost -localauth
+	#echo BOS users:;	bos listusers localhost -localauth
+	#echo BOS hosts:;	bos listhosts localhost -localauth
+	#echo BOS keys:;	bos listkeys localhost -localauth
+	echo asetkey:;		asetkey list
+	#echo VOS volumes:;	vos listvol localhost -localauth
 }
 function PingNodeOrExit()
 {
