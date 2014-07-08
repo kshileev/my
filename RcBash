@@ -471,9 +471,13 @@ function ksAliasDefine()
     alias di='gendiff . .kshileev > ~/kshileev.diff-xx-xxxx-`date +%Y%m%d`'
     alias ki='find . -name *.kshileev'
     alias a='alias'
+    alias cdm="cd ${MY_DIR}"
     alias df='df -h'
     alias dm='dmesg'
     alias du='du -h'
+    alias gb='git branch'
+    alias gr='git remote -v'
+    alias gs='git status'
     alias e='echo'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
     alias h='history'
@@ -622,8 +626,8 @@ function ksMyEnvDeploy()
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
-	[ -f ~/.vimrc ] && mv  ~/.vimrc ~/VimRcToCheck
-	ln -s ${MY_VIM_RC} ~/.vimrc
+	[ ! -L ~/.vimrc ] && mv  ~/.vimrc ~/VimRcToCheck
+	[ -L ~/.vimrc ] || ln -s ${MY_VIM_RC} ~/.vimrc
 	;;
     remote)
 	grep -v ^127 /etc/hosts | grep ^[1-2]
