@@ -397,30 +397,16 @@ EOF
 }
 function ksRepo
 {
-    echo I know the follifing repositories:
-    echo
-    echo github kshileev buzzoola
-    echo github Buzzoola buzzoola
-    echo github kshileev barracuda
-    echo GD svn goldfish
-    echo GD svn azurehpc
-    echo GD svn masys
-    echo Paralles git ovzctl
-    echo Paralles git ovzkernel
-    echo
-
-    read -p 'Choose repo: ' repo
+    local repo=$(ksGetInput 'devstack tempest buzzoola barracuda ovzctl ovzkernel')
     case ${repo} in
+	devstack) git clone https://github.com/openstack-dev/devstack.git;;
+	tempest) https://github.com/openstack/tempest.git;;
 	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz
 		  cd $HOME/buzz
 		  git remote add up git@github.com:Buzzoola/buzzoola.git
 		  ;;
 	Buzzoola) git clone git@github.com:Buzzoola/buzzoola.git ;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
-	libcloud|nova-tests) echo Not yet implemented!	    ;;
-	goldfish) svn --username kshileev --password 0o-p=[\] co https://svn.griddynamics.net/svn/goldfish  ;;
-	azurehpc) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/azurehpc  ;;
-	masys) svn --username kshileev --password 0o-p=[\] co https://svn.gdc.mirantis.sar/svn/macys/trunk  ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
 	*)  echo No repo choosen, nothing to do! ;;
@@ -476,6 +462,7 @@ function ksAliasDefine()
     alias dm='dmesg'
     alias du='du -h'
     alias gb='git branch'
+    alias gd='git diff'
     alias gr='git remote -v'
     alias gs='git status'
     alias e='echo'
