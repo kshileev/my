@@ -142,9 +142,9 @@ function ksNova()
 }
 function ksDevstack()
 {
-    local devstack_command=$(ksGetInput 'config result')
+    local devstack_command=$(ksGetInput 'config run result')
     case ${devstack_command} in
-        devstack-config)
+    config)
             local conf_file_name=local.conf
             echo '[[local|localrc]]'        > ${conf_file_name}
             echo ADMIN_PASSWORD=password   >> ${conf_file_name}
@@ -160,10 +160,13 @@ function ksDevstack()
 
             echo ${conf_file_name} created
         ;;
-        result)
+    run)
+	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=~/current_tempest
+	;;
+    result)
             testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
         ;;
-        *) echo Command ${devstack_command} is wrong, nothing to do ;;
+    *) echo Command ${devstack_command} is wrong, nothing to do ;;
     esac
 }
 function ksInfo()
@@ -464,6 +467,7 @@ function ksAliasDefine()
     alias du='du -h'
     alias gb='git branch'
     alias gd='git diff'
+    alias gl='git log'
     alias gr='git remote -v'
     alias gs='git status'
     alias e='echo'
