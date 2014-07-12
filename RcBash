@@ -161,7 +161,7 @@ function ksDevstack()
             echo ${conf_file_name} created
         ;;
     run)
-	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=~/current_tempest
+	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=${HOME}/current_tempest
 	;;
     result)
             testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
