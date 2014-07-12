@@ -117,6 +117,8 @@ function ksVirt()
 function ksGetInput()
 {
     local commands=$1
+    local command=$2
+    [ -n "${command}" ] && [[ "${commands}" == *${command}* ]] && echo ${command} && return
     local default_command=$(echo ${commands} | cut -d ' ' -f1)
     local input
     read -p "Possible commands: ${commands} [default=${default_command}]: " input
@@ -142,7 +144,7 @@ function ksNova()
 }
 function ksDevstack()
 {
-    local devstack_command=$(ksGetInput 'config run result')
+    local devstack_command=$(ksGetInput 'config run result' $1)
     case ${devstack_command} in
     config)
             local conf_file_name=local.conf
