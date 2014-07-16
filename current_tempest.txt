@@ -1,1 +1,0 @@
-tempest.api.network.test_networks.NetworksIpV6TestJSON.test_create_delete_subnet_with_v6_attributes[gate,smoke]
