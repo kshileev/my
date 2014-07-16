@@ -1,0 +1,337 @@
+From d258d2e8e8b207d332fd465aad7c02dc3ff0c941 Mon Sep 17 00:00:00 2001
+From: Robert Li <baoli@cisco.com>
+Date: Mon, 30 Jun 2014 09:55:11 -0400
+Subject: [PATCH] Add IPv6 support
+
+A couple of things are covered in this patch
+   -- the openstack management network can be either ipv4 or ipv6
+   -- the tenant data network can be either ipv4 or ipv6
+
+Define MGMT_NET with one of the two values 4 or 6 in your localrc
+to indicate if you intend to run your management network as either
+ipv4 or ipv6. Default value is 4
+
+It's recommended to use host names to define HOST_IP, SERVICE_IP,
+etc., in your localrc instead of IPv6 addresses. Those host names
+should correspond to ipv6 addresses.
+
+Define IP_VERSION with one of the three values 4, 6, or 4+6 in
+your localrc to indicate if you intend to run your tenant data network
+as either ipv4, ipv6, or dual stack respectively. Default value is 4.
+
+A couple of variables should be defined in your localrc:
+  - IPV6_PRIVATE_RANGE: the ipv6 prefix for your tenant network
+  - IPV6_NETWORK_GATEWAY: the gateway IP with the same prefix
+
+you may want to run a radvd service in your router namespace to advertise
+default routes into your VMs. you can use this patch to achieve that:
+https://review.openstack.org/#/c/102648
+
+To use the IPv6 subnet API, you can define the foloowing in localrc:
+  - IPV6_RA_MODE (with default as slaac)
+  - IPV6_ADDRESS_MODE (with default as slaac)
+
+Make sure that your VM image has dhcpv6 client enabled at bootup.
+Or otherwise, you need to run it manually after the VM is booted.
+It's recommended to run the lastest version of dnsmasq 2.68.
+If you intend to enable internet access in your VM, make sure
+your network node has ipv6 internet access, and the ipv6 prefix for
+your tenant network is a GUA and routable.
+
+Implements: blueprint ipv6-support
+Change-Id: I848abf18e00e2a869697c5ef6366bc567dde448a
+---
+ lib/databases/mysql |   9 +++-
+ lib/glance          |  10 ++++
+ lib/keystone        |   3 ++
+ lib/neutron         | 128 ++++++++++++++++++++++++++++++++++++++++++++--------
+ lib/nova            |   6 +++
+ lib/rpc_backend     |   6 ++-
+ stack.sh            |   2 +
+ 7 files changed, 142 insertions(+), 22 deletions(-)
+
+diff --git a/lib/databases/mysql b/lib/databases/mysql
+index 0ccfce5..966b034 100644
+--- a/lib/databases/mysql
++++ b/lib/databases/mysql
+@@ -82,12 +82,17 @@ function configure_database_mysql {
+     # Update the DB to give user ‘$DATABASE_USER’@’%’ full control of the all databases:
+     sudo mysql -uroot -p$DATABASE_PASSWORD -h127.0.0.1 -e "GRANT ALL PRIVILEGES ON *.* TO '$DATABASE_USER'@'%' identified by '$DATABASE_PASSWORD';"
+ 
++    local bind_address=0.0.0.0
++    if [[ "$MGMT_NET" == "6" ]]; then
++        bind_address=::
++    fi
++
+     # Now update ``my.cnf`` for some local needs and restart the mysql service
+ 
+-    # Change ‘bind-address’ from localhost (127.0.0.1) to any (0.0.0.0) and
++    # Change ‘bind-address’ from localhost (127.0.0.1) to any and
+     # set default db type to InnoDB
+     sudo bash -c "source $TOP_DIR/functions && \
+-        iniset $MY_CONF mysqld bind-address 0.0.0.0 && \
++        iniset $MY_CONF mysqld bind-address $bind_address && \
+         iniset $MY_CONF mysqld sql_mode STRICT_ALL_TABLES && \
+         iniset $MY_CONF mysqld default-storage-engine InnoDB"
+ 
+diff --git a/lib/glance b/lib/glance
+index 4eb0ada..344e9e2 100644
+--- a/lib/glance
++++ b/lib/glance
+@@ -85,6 +85,11 @@ function configure_glance {
+     cp $GLANCE_DIR/etc/glance-registry.conf $GLANCE_REGISTRY_CONF
+     iniset $GLANCE_REGISTRY_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+     inicomment $GLANCE_REGISTRY_CONF DEFAULT log_file
++
++    if [[ "$MGMT_NET" == "6" ]]; then
++        iniset $GLANCE_REGISTRY_CONF DEFAULT bind_host "::"
++    fi
++
+     local dburl=`database_connection_url glance`
+     iniset $GLANCE_REGISTRY_CONF DEFAULT sql_connection $dburl
+     iniset $GLANCE_REGISTRY_CONF DEFAULT use_syslog $SYSLOG
+@@ -100,6 +105,11 @@ function configure_glance {
+     cp $GLANCE_DIR/etc/glance-api.conf $GLANCE_API_CONF
+     iniset $GLANCE_API_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+     inicomment $GLANCE_API_CONF DEFAULT log_file
++
++    if [[ "$MGMT_NET" == "6" ]]; then
++        iniset $GLANCE_API_CONF DEFAULT bind_host "::"
++    fi
++
+     iniset $GLANCE_API_CONF DEFAULT sql_connection $dburl
+     iniset $GLANCE_API_CONF DEFAULT use_syslog $SYSLOG
+     iniset $GLANCE_API_CONF DEFAULT filesystem_store_datadir $GLANCE_IMAGE_DIR/
+diff --git a/lib/keystone b/lib/keystone
+index 41ed4c1..a8ded19 100644
+--- a/lib/keystone
++++ b/lib/keystone
+@@ -214,6 +214,9 @@ function configure_keystone {
+         iniset $KEYSTONE_CONF token provider keystone.token.providers.$KEYSTONE_TOKEN_FORMAT.Provider
+     fi
+ 
++    if [[ "$MGMT_NET" == "6" ]]; then
++        iniset $KEYSTONE_CONF DEFAULT bind_host "::"
++    fi
+     iniset $KEYSTONE_CONF database connection `database_connection_url keystone`
+     iniset $KEYSTONE_CONF ec2 driver "keystone.contrib.ec2.backends.sql.Ec2"
+ 
+diff --git a/lib/neutron b/lib/neutron
+index 2c6f53b..e8f26ac 100644
+--- a/lib/neutron
++++ b/lib/neutron
+@@ -63,11 +63,26 @@
+ # Neutron Network Configuration
+ # -----------------------------
+ 
++IP_VERSION=${IP_VERSION:-4}
+ # Gateway and subnet defaults, in case they are not customized in localrc
+ NETWORK_GATEWAY=${NETWORK_GATEWAY:-10.0.0.1}
+ PUBLIC_NETWORK_GATEWAY=${PUBLIC_NETWORK_GATEWAY:-172.24.4.1}
+ PRIVATE_SUBNET_NAME=${PRIVATE_SUBNET_NAME:-"private-subnet"}
+ PUBLIC_SUBNET_NAME=${PUBLIC_SUBNET_NAME:-"public-subnet"}
++DNS_NAMESERVER=${DNS_NAMESERVER:-8.8.8.8}
++
++# Gateway and subnet defaults for IPv6
++WITH_IPV6_PATCH=${WITH_IPV6_PATCH:-True}
++IPV6_RA_MODE=${IPV6_RA_MODE:-slaac}
++IPV6_ADDRESS_MODE=${IPV6_ADDRESS_MODE:-slaac}
++IPV6_NETWORK_GATEWAY=${IPV6_NETWORK_GATEWAY:-fd00::1}
++IPV6_PRIVATE_SUBNET_NAME=${IPV6_PRIVATE_SUBNET_NAME:-ipv6-private-subnet}
++IPV6_PRIVATE_RANGE=${IPV6_PRIVATE_RANGE:-fd00::/64}
++IPV6_PUBLIC_SUBNET_NAME=${IPV6_PUBLIC_SUBNET_NAME:-ipv6-public-subnet}
++IPV6_PUBLIC_RANGE=${IPV6_PUBLIC_RANGE:-fe80:bad:dad::/64}
++IPV6_ROUTER_GW_IP=${IPV6_ROUTER_GW_IP:-fe80:bad:dad::1}
++IPV6_PUBLIC_NETWORK_GATEWAY=${IPV6_PUBLIC_NETWORK_GATEWAY:-fe80:bad:dad::2}
++IPV6_DNS_NAMESERVER=${IPV6_DNS_NAMESERVER:-2001:4860:4860::8888}
+ 
+ # Set up default directories
+ NEUTRON_DIR=$DEST/neutron
+@@ -410,8 +425,20 @@ function create_neutron_initial_network {
+     else
+         NET_ID=$(neutron net-create --tenant-id $TENANT_ID "$PRIVATE_NETWORK_NAME" | grep ' id ' | get_field 2)
+         die_if_not_set $LINENO NET_ID "Failure creating NET_ID for $PHYSICAL_NETWORK $TENANT_ID"
+-        SUBNET_ID=$(neutron subnet-create --tenant-id $TENANT_ID --ip_version 4 --gateway $NETWORK_GATEWAY --name $PRIVATE_SUBNET_NAME $NET_ID $FIXED_RANGE | grep ' id ' | get_field 2)
+-        die_if_not_set $LINENO SUBNET_ID "Failure creating SUBNET_ID for $TENANT_ID"
++
++        if [[ "$IP_VERSION" == "4" || "$IP_VERSION" == "4+6" ]]; then
++            SUBNET_ID=$(neutron subnet-create --tenant-id $TENANT_ID --ip_version 4 --gateway $NETWORK_GATEWAY --dns-nameserver $DNS_NAMESERVER --name $PRIVATE_SUBNET_NAME $NET_ID $FIXED_RANGE | grep ' id ' | get_field 2)
++            die_if_not_set $LINENO SUBNET_ID "Failure creating SUBNET_ID for $TENANT_ID"
++        fi
++
++        if [[ "$IP_VERSION" == "6" || "$IP_VERSION" == "4+6" ]]; then
++            IPV6_MODES=
++            if [[ "$WITH_IPV6_PATCH" == "True" ]]; then
++                IPV6_MODES="--ipv6-ra-mode $IPV6_RA_MODE --ipv6-address-mode $IPV6_ADDRESS_MODE"
++            fi
++            IPV6_SUBNET_ID=$(neutron subnet-create --tenant-id $TENANT_ID --ip_version 6 --gateway $IPV6_NETWORK_GATEWAY --dns-nameserver $IPV6_DNS_NAMESERVER --name $IPV6_PRIVATE_SUBNET_NAME $NET_ID $IPV6_PRIVATE_RANGE $IPV6_MODES | grep ' id ' | get_field 2)
++            die_if_not_set $LINENO IPV6_SUBNET_ID "Failure creating IPV6_SUBNET_ID for $TENANT_ID"
++        fi
+     fi
+ 
+     if [[ "$Q_L3_ENABLED" == "True" ]]; then
+@@ -425,27 +452,86 @@ function create_neutron_initial_network {
+             ROUTER_ID=$(neutron router-create $Q_ROUTER_NAME | grep ' id ' | get_field 2)
+             die_if_not_set $LINENO ROUTER_ID "Failure creating ROUTER_ID for $Q_ROUTER_NAME"
+         fi
+-        neutron router-interface-add $ROUTER_ID $SUBNET_ID
++
+         # Create an external network, and a subnet. Configure the external network as router gw
+         EXT_NET_ID=$(neutron net-create "$PUBLIC_NETWORK_NAME" -- --router:external=True | grep ' id ' | get_field 2)
+         die_if_not_set $LINENO EXT_NET_ID "Failure creating EXT_NET_ID for $PUBLIC_NETWORK_NAME"
+-        EXT_GW_IP=$(neutron subnet-create --ip_version 4 ${Q_FLOATING_ALLOCATION_POOL:+--allocation-pool $Q_FLOATING_ALLOCATION_POOL} --gateway $PUBLIC_NETWORK_GATEWAY --name $PUBLIC_SUBNET_NAME $EXT_NET_ID $FLOATING_RANGE -- --enable_dhcp=False | grep 'gateway_ip' | get_field 2)
+-        die_if_not_set $LINENO EXT_GW_IP "Failure creating EXT_GW_IP"
+-        neutron router-gateway-set $ROUTER_ID $EXT_NET_ID
+-
+-        if is_service_enabled q-l3; then
+-            # logic is specific to using the l3-agent for l3
+-            if is_neutron_ovs_base_plugin && [[ "$Q_USE_NAMESPACE" = "True" ]]; then
+-                CIDR_LEN=${FLOATING_RANGE#*/}
+-                sudo ip addr add $EXT_GW_IP/$CIDR_LEN dev $PUBLIC_BRIDGE
+-                sudo ip link set $PUBLIC_BRIDGE up
+-                ROUTER_GW_IP=`neutron port-list -c fixed_ips -c device_owner | grep router_gateway | awk -F '"' '{ print $8; }'`
+-                die_if_not_set $LINENO ROUTER_GW_IP "Failure retrieving ROUTER_GW_IP"
+-                sudo route add -net $FIXED_RANGE gw $ROUTER_GW_IP
++
++        if [[ "$IP_VERSION" == "4" || "$IP_VERSION" == "4+6" ]]; then
++            neutron router-interface-add $ROUTER_ID $SUBNET_ID
++            ID_AND_EXT_GW_IP=$(neutron subnet-create --ip_version 4 ${Q_FLOATING_ALLOCATION_POOL:+--allocation-pool $Q_FLOATING_ALLOCATION_POOL} --gateway $PUBLIC_NETWORK_GATEWAY --name $PUBLIC_SUBNET_NAME $EXT_NET_ID $FLOATING_RANGE -- --enable_dhcp=False | grep -e 'gateway_ip' -e ' id ')
++            die_if_not_set $LINENO ID_AND_EXT_GW_IP "Failure creating a public subnet"
++            EXT_GW_IP=$(echo $ID_AND_EXT_GW_IP  | get_field 2)
++            PUB_SUBNET_ID=$(echo $ID_AND_EXT_GW_IP | get_field 5)
++            neutron router-gateway-set $ROUTER_ID $EXT_NET_ID
++
++            if is_service_enabled q-l3; then
++                # logic is specific to using the l3-agent for l3
++                if is_neutron_ovs_base_plugin && [[ "$Q_USE_NAMESPACE" = "True" ]]; then
++                    CIDR_LEN=${FLOATING_RANGE#*/}
++                    sudo ip addr add $EXT_GW_IP/$CIDR_LEN dev $PUBLIC_BRIDGE
++                    sudo ip link set $PUBLIC_BRIDGE up
++                    ROUTER_GW_IP=`neutron port-list -c fixed_ips -c device_owner | grep router_gateway | awk -F '"' -v subnet_id=$PUB_SUBNET_ID '$4 == subnet_id { print $8; }'`
++                    die_if_not_set $LINENO ROUTER_GW_IP "Failure retrieving ROUTER_GW_IP"
++                    sudo route add -net $FIXED_RANGE gw $ROUTER_GW_IP
++                fi
++                if [[ "$Q_USE_NAMESPACE" == "False" ]]; then
++                    # Explicitly set router id in l3 agent configuration
++                    iniset $Q_L3_CONF_FILE DEFAULT router_id $ROUTER_ID
++                fi
+             fi
+-            if [[ "$Q_USE_NAMESPACE" == "False" ]]; then
+-                # Explicitly set router id in l3 agent configuration
+-                iniset $Q_L3_CONF_FILE DEFAULT router_id $ROUTER_ID
++        fi
++
++        if [[ "$IP_VERSION" == "6" || "$IP_VERSION" == "4+6" ]]; then
++            neutron router-interface-add $ROUTER_ID $IPV6_SUBNET_ID
++            # Create an external network, and a subnet. Configure the external network as router gw
++            IPV6_ID_AND_EXT_GW_IP=$(neutron subnet-create --ip_version 6 --gateway $IPV6_PUBLIC_NETWORK_GATEWAY --name $IPV6_PUBLIC_SUBNET_NAME $EXT_NET_ID $IPV6_PUBLIC_RANGE -- --enable_dhcp=False | grep -e 'gateway_ip' -e ' id ')
++            die_if_not_set $LINENO IPV6_ID_AND_EXT_GW_IP "Failure creating a IPv6 public subnet"
++            IPV6_EXT_GW_IP=$(echo $IPV6_ID_AND_EXT_GW_IP | get_field 2)
++            IPV6_PUB_SUBNET_ID=$(echo $IPV6_ID_AND_EXT_GW_IP | get_field 5)
++
++            if [[ "$IP_VERSION" == "6" ]]; then
++                neutron router-gateway-set $ROUTER_ID $EXT_NET_ID
++            fi
++
++            if is_service_enabled q-l3; then
++                IPV6_CIDR_LEN=${IPV6_PUBLIC_RANGE#*/}
++                IPV6_PREFIX=${IPV6_PUBLIC_RANGE%/*}
++                # logic is specific to using the l3-agent for l3
++                if [[ "$IP_VERSION" == "6" ]]; then
++                    IPV6_ROUTER_GW_IP=`neutron port-list -c fixed_ips -c device_owner | grep router_gateway | awk -F '"' -v subnet_id=$IPV6_PUB_SUBNET_ID '$4 == subnet_id { print $8; }'`
++                    die_if_not_set $LINENO IPV6_ROUTER_GW_IP "Failure retrieving IPV6_ROUTER_GW_IP"
++                    IPV6_ROUTER_GW_PORT=`neutron port-list -c id -c fixed_ips -c device_owner | grep router_gateway | awk -F '"' -v subnet_id=$IPV6_PUB_SUBNET_ID '$4 == subnet_id { print $1; }' | awk -F ' | ' '{ print $2; }'`
++                    die_if_not_set $LINENO IPV6_ROUTER_GW_PORT "Failure retrieving IPV6_ROUTER_GW_PORT"
++                else
++                    IPV6_ROUTER_GW_PORT=`neutron port-list -c id -c fixed_ips -c device_owner | grep router_gateway | awk -F '"' -v subnet_id=$PUB_SUBNET_ID '$4 == subnet_id { print $1; }' | awk -F ' | ' '{ print $2; }'`
++                    die_if_not_set $LINENO IPV6_ROUTER_GW_PORT "Failure retrieving IPV6_ROUTER_GW_PORT"
++                fi
++
++                # OVS script flush the public bridge's ip addresses. Flip the disable_ipv6 configuration variable to recover the public bridge's LLA address
++                sudo sysctl -w net.ipv6.conf.${PUBLIC_BRIDGE}.disable_ipv6=1
++                sudo sysctl -w net.ipv6.conf.${PUBLIC_BRIDGE}.disable_ipv6=0
++                if is_neutron_ovs_base_plugin && [[ "$Q_USE_NAMESPACE" = "True" ]]; then
++                    sudo ip netns exec qrouter-$ROUTER_ID sysctl -w net.ipv6.conf.all.forwarding=1
++                    sudo ip -6 addr add $IPV6_EXT_GW_IP/$IPV6_CIDR_LEN dev $PUBLIC_BRIDGE
++
++                    if [[ "$IP_VERSION" == "4+6" ]]; then
++                        until sudo ip netns exec qrouter-$ROUTER_ID ip addr show qg-${IPV6_ROUTER_GW_PORT:0:11} | grep $ROUTER_GW_IP; do
++                            sleep 1
++                        done
++                        sudo ip netns exec qrouter-$ROUTER_ID ip -6 addr add $IPV6_ROUTER_GW_IP/$IPV6_CIDR_LEN dev qg-${IPV6_ROUTER_GW_PORT:0:11}
++                    else
++                        until sudo ip netns exec qrouter-$ROUTER_ID ip addr show qg-${IPV6_ROUTER_GW_PORT:0:11} | grep $IPV6_PREFIX; do
++                            sleep 1
++                        done
++                    fi
++                    sudo ip -6 route add $IPV6_PRIVATE_RANGE via $IPV6_ROUTER_GW_IP dev $PUBLIC_BRIDGE
++                    sudo ip netns exec qrouter-$ROUTER_ID ip -6 route add ::/0 via $IPV6_EXT_GW_IP dev qg-${IPV6_ROUTER_GW_PORT:0:11}
++                fi
++                if [[ "$Q_USE_NAMESPACE" == "False" ]]; then
++                    # Explicitly set router id in l3 agent configuration
++                    iniset $Q_L3_CONF_FILE DEFAULT router_id $ROUTER_ID
++                fi
+             fi
+         fi
+     fi
+@@ -589,6 +675,10 @@ function _configure_neutron_common {
+ 
+     cp $NEUTRON_DIR/etc/neutron.conf $NEUTRON_CONF
+ 
++    if [[ "$MGMT_NET" == "6" ]]; then
++        iniset $NEUTRON_CONF DEFAULT bind_host "::"
++    fi
++
+     # Set plugin-specific variables ``Q_DB_NAME``, ``Q_PLUGIN_CLASS``.
+     # For main plugin config file, set ``Q_PLUGIN_CONF_PATH``, ``Q_PLUGIN_CONF_FILENAME``.
+     # For addition plugin config files, set ``Q_PLUGIN_EXTRA_CONF_PATH``,
+diff --git a/lib/nova b/lib/nova
+index 3d31d68..8ef44f6 100644
+--- a/lib/nova
++++ b/lib/nova
+@@ -443,6 +443,12 @@ function create_nova_conf {
+         iniset $NOVA_CONF DEFAULT bindir "/usr/bin"
+     fi
+ 
++    if [[ "$MGMT_NET" == "6" ]]; then
++        iniset $NOVA_CONF DEFAULT metadata_listen "::"
++        iniset $NOVA_CONF DEFAULT ec2_listen "::"
++        iniset $NOVA_CONF DEFAULT osapi_compute_listen "::"
++    fi
++
+     if is_service_enabled n-api; then
+         if is_service_enabled n-api-meta; then
+             # If running n-api-meta as a separate service
+diff --git a/lib/rpc_backend b/lib/rpc_backend
+index e922daa..e7b1375 100644
+--- a/lib/rpc_backend
++++ b/lib/rpc_backend
+@@ -174,7 +174,11 @@ function iniset_rpc_backend {
+         iniset $file $section rpc_zmq_matchmaker \
+             ${package}.openstack.common.rpc.matchmaker_redis.MatchMakerRedis
+         # Set MATCHMAKER_REDIS_HOST if running multi-node.
+-        MATCHMAKER_REDIS_HOST=${MATCHMAKER_REDIS_HOST:-127.0.0.1}
++        if [[ "$MGMT_NET" == "4" ]]; then
++            MATCHMAKER_REDIS_HOST=${MATCHMAKER_REDIS_HOST:-127.0.0.1}
++        else
++            MATCHMAKER_REDIS_HOST=${MATCHMAKER_REDIS_HOST:-::1}
++        fi
+         iniset $file matchmaker_redis host $MATCHMAKER_REDIS_HOST
+     elif is_service_enabled qpid || [ -n "$QPID_HOST" ]; then
+         iniset $file $section rpc_backend ${package}.openstack.common.rpc.impl_qpid
+diff --git a/stack.sh b/stack.sh
+index ab6dcf3..e10890d 100755
+--- a/stack.sh
++++ b/stack.sh
+@@ -109,6 +109,8 @@ export_proxy_variables
+ # Destination path for installation ``DEST``
+ DEST=${DEST:-/opt/stack}
+ 
++# Set default type of Management Network
++MGMT_NET=${MGMT_NET:-4}
+ 
+ # Sanity Check
+ # ------------
+-- 
+1.9.1
+

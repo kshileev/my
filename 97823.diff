@@ -1,0 +1,224 @@
+From 782ff0f7dc0fdb40083e22f8a0862ede24822f8c Mon Sep 17 00:00:00 2001
+From: Baodong Li <baoli@cisco.com>
+Date: Wed, 4 Jun 2014 15:09:02 +0000
+Subject: [PATCH] Add IPv6 management network support
+
+This changeset adds support of IPv6 management network in devstack. Define
+IP_MGMT_NET={ipv6 | ipv4} in your localrc to indicate if IPv6 or IPv4
+management network shoule be used. Default management network is ipv4.
+
+Note that there is a bug in eventlet that prevents the use of literal IPv6
+addresses in URL. The fix to it hasn't been released. Therefore, it's
+recommended that HOST_IP and SERVICE_HOST be explicitly defined with HOSTNAMES.
+
+when literal IPv6 addresses are supported, make sure that HOST_IP and
+SERVICE_HOST are using literal IPv6 address format when defining them in your
+localrc. That is, quote the IPv6 address with '[' and ']'.
+
+Also in your localrc, make sure to disable n-api-meta. There is a bug there
+that prevents nova api from being started successfully.
+
+Change-Id: Id913f8e25d75813de1c56abb63102b86f6dec0b5
+Implements: blueprint ipv6-support
+---
+ functions-common    | 34 ++++++++++++++++++++++++++++++----
+ lib/databases/mysql |  4 ++--
+ lib/glance          |  3 +++
+ lib/keystone        |  1 +
+ lib/neutron         |  2 ++
+ lib/nova            | 12 ++++++++----
+ stack.sh            | 12 ++++++++++--
+ 7 files changed, 56 insertions(+), 12 deletions(-)
+
+diff --git a/functions-common b/functions-common
+index 6340c5c..1f77fdc 100644
+--- a/functions-common
++++ b/functions-common
+@@ -137,6 +137,23 @@ $option = $value
+     $xtrace
+ }
+ 
++# Set the bind or listening address based on the management network type
++# iniset_bind_address config-file section option
++function iniset_bind_address {
++    local xtrace=$(set +o | grep xtrace)
++    set +o xtrace
++    local file=$1
++    local section=$2
++    local option=$3
++    # default is ipv4
++    local bind_address=0.0.0.0
++
++    if [[ "$IP_MGMT_NET" == "ipv6" ]]; then
++        bind_address=::
++    fi
++    iniset $file $section $option $bind_address
++}
++
+ # Set a multiple line option in an INI file
+ # iniset_multiline config-file section option value1 value2 valu3 ...
+ function iniset_multiline {
+@@ -654,12 +671,16 @@ function get_default_host_ip {
+     local host_ip_iface=$3
+     local host_ip=$4
+ 
+-    # Find the interface used for the default route
+-    host_ip_iface=${host_ip_iface:-$(ip route | sed -n '/^default/{ s/.*dev \(\w\+\)\s\+.*/\1/; p; }' | head -1)}
+     # Search for an IP unless an explicit is set by ``HOST_IP`` environment variable
+     if [ -z "$host_ip" -o "$host_ip" == "dhcp" ]; then
+         host_ip=""
+-        host_ips=`LC_ALL=C ip -f inet addr show ${host_ip_iface} | awk '/inet/ {split($2,parts,"/");  print parts[1]}'`
++        # Find the interface used for the default route
++        ip_family=4
++        if [[ "$IP_MGMT_NET" == "ipv6" ]]; then
++            ip_family=6
++        fi
++        host_ip_iface=${host_ip_iface:-$(ip -$ip_family route | sed -n '/^default/{ s/.*dev \(\w\+\)\s\+.*/\1/; p; }' | head -1)}
++        host_ips=`LC_ALL=C ip -$ip_family addr show ${host_ip_iface} | awk '/inet.*global/ {split($2,parts,"/");  print parts[1]}'`
+         for IP in $host_ips; do
+             # Attempt to filter out IP addresses that are part of the fixed and
+             # floating range. Note that this method only works if the ``netaddr``
+@@ -668,7 +689,12 @@ function get_default_host_ip {
+             # If that is not correct set ``HOST_IP`` in ``localrc`` to the correct
+             # address.
+             if ! (address_in_net $IP $fixed_range || address_in_net $IP $floating_range); then
+-                host_ip=$IP
++                # for IPv6, use literal IPv6 address in URL
++                if [[ "$IP_MGMT_NET" == "ipv6" ]]; then
++                    host_ip=[$IP]
++                else
++                    host_ip=$IP
++                fi
+                 break;
+             fi
+         done
+diff --git a/lib/databases/mysql b/lib/databases/mysql
+index 0a96cf8..965de09 100644
+--- a/lib/databases/mysql
++++ b/lib/databases/mysql
+@@ -83,10 +83,10 @@ function configure_database_mysql {
+ 
+     # Now update ``my.cnf`` for some local needs and restart the mysql service
+ 
+-    # Change ‘bind-address’ from localhost (127.0.0.1) to any (0.0.0.0) and
++    # Change ‘bind-address’ from localhost (127.0.0.1) to any and
+     # set default db type to InnoDB
+     sudo bash -c "source $TOP_DIR/functions && \
+-        iniset $MY_CONF mysqld bind-address 0.0.0.0 && \
++        IP_MGMT_NET=$IP_MGMT_NET iniset_bind_address $MY_CONF mysqld bind-address && \
+         iniset $MY_CONF mysqld default-storage-engine InnoDB"
+ 
+ 
+diff --git a/lib/glance b/lib/glance
+index 51e4399..94806cf 100644
+--- a/lib/glance
++++ b/lib/glance
+@@ -98,10 +98,13 @@ function configure_glance {
+     iniset $GLANCE_REGISTRY_CONF keystone_authtoken admin_user glance
+     iniset $GLANCE_REGISTRY_CONF keystone_authtoken admin_password $SERVICE_PASSWORD
+     iniset $GLANCE_REGISTRY_CONF keystone_authtoken signing_dir $GLANCE_AUTH_CACHE_DIR/registry
++    iniset_bind_address $GLANCE_REGISTRY_CONF DEFAULT bind_host
+ 
+     cp $GLANCE_DIR/etc/glance-api.conf $GLANCE_API_CONF
+     iniset $GLANCE_API_CONF DEFAULT debug $ENABLE_DEBUG_LOG_LEVEL
+     inicomment $GLANCE_API_CONF DEFAULT log_file
++
++    iniset_bind_address $GLANCE_API_CONF DEFAULT bind_host
+     iniset $GLANCE_API_CONF DEFAULT sql_connection $dburl
+     iniset $GLANCE_API_CONF DEFAULT use_syslog $SYSLOG
+     iniset $GLANCE_API_CONF DEFAULT filesystem_store_datadir $GLANCE_IMAGE_DIR/
+diff --git a/lib/keystone b/lib/keystone
+index b31cc57..42149f4 100644
+--- a/lib/keystone
++++ b/lib/keystone
+@@ -203,6 +203,7 @@ function configure_keystone {
+         iniset $KEYSTONE_CONF token provider keystone.token.providers.uuid.Provider
+     fi
+ 
++    iniset_bind_address $KEYSTONE_CONF DEFAULT bind_host
+     iniset $KEYSTONE_CONF database connection `database_connection_url keystone`
+     iniset $KEYSTONE_CONF ec2 driver "keystone.contrib.ec2.backends.sql.Ec2"
+ 
+diff --git a/lib/neutron b/lib/neutron
+index b7c9464..f7817b1 100644
+--- a/lib/neutron
++++ b/lib/neutron
+@@ -565,6 +565,8 @@ function _configure_neutron_common {
+ 
+     cp $NEUTRON_DIR/etc/neutron.conf $NEUTRON_CONF
+ 
++    iniset_bind_address $NEUTRON_CONF DEFAULT bind_host
++
+     # Set plugin-specific variables ``Q_DB_NAME``, ``Q_PLUGIN_CLASS``.
+     # For main plugin config file, set ``Q_PLUGIN_CONF_PATH``, ``Q_PLUGIN_CONF_FILENAME``.
+     # For addition plugin config files, set ``Q_PLUGIN_EXTRA_CONF_PATH``,
+diff --git a/lib/nova b/lib/nova
+index 47e4afc..2efd28c 100644
+--- a/lib/nova
++++ b/lib/nova
+@@ -444,6 +444,10 @@ function create_nova_conf {
+         iniset $NOVA_CONF DEFAULT bindir "/usr/bin"
+     fi
+ 
++    iniset_bind_address $NOVA_CONF DEFAULT metadata_listen
++    iniset_bind_address $NOVA_CONF DEFAULT ec2_listen
++    iniset_bind_address $NOVA_CONF DEFAULT osapi_compute_listen
++
+     if is_service_enabled n-api; then
+         if is_service_enabled n-api-meta; then
+             # If running n-api-meta as a separate service
+@@ -531,8 +535,8 @@ function create_nova_conf {
+     if is_service_enabled n-novnc || is_service_enabled n-xvnc; then
+         # Address on which instance vncservers will listen on compute hosts.
+         # For multi-host, this should be the management ip of the compute host.
+-        VNCSERVER_LISTEN=${VNCSERVER_LISTEN=127.0.0.1}
+-        VNCSERVER_PROXYCLIENT_ADDRESS=${VNCSERVER_PROXYCLIENT_ADDRESS=127.0.0.1}
++        VNCSERVER_LISTEN=${VNCSERVER_LISTEN:-127.0.0.1}
++        VNCSERVER_PROXYCLIENT_ADDRESS=${VNCSERVER_PROXYCLIENT_ADDRESS:-127.0.0.1}
+         iniset $NOVA_CONF DEFAULT vnc_enabled true
+         iniset $NOVA_CONF DEFAULT vncserver_listen "$VNCSERVER_LISTEN"
+         iniset $NOVA_CONF DEFAULT vncserver_proxyclient_address "$VNCSERVER_PROXYCLIENT_ADDRESS"
+@@ -543,8 +547,8 @@ function create_nova_conf {
+     if is_service_enabled n-spice; then
+         # Address on which instance spiceservers will listen on compute hosts.
+         # For multi-host, this should be the management ip of the compute host.
+-        SPICESERVER_PROXYCLIENT_ADDRESS=${SPICESERVER_PROXYCLIENT_ADDRESS=127.0.0.1}
+-        SPICESERVER_LISTEN=${SPICESERVER_LISTEN=127.0.0.1}
++        SPICESERVER_PROXYCLIENT_ADDRESS=${SPICESERVER_PROXYCLIENT_ADDRESS:-127.0.0.1}
++        SPICESERVER_LISTEN=${SPICESERVER_LISTEN:-127.0.0.1}
+         iniset $NOVA_CONF spice enabled true
+         iniset $NOVA_CONF spice server_listen "$SPICESERVER_LISTEN"
+         iniset $NOVA_CONF spice server_proxyclient_address "$SPICESERVER_PROXYCLIENT_ADDRESS"
+diff --git a/stack.sh b/stack.sh
+index dff6bd3..37c409b 100755
+--- a/stack.sh
++++ b/stack.sh
+@@ -109,6 +109,8 @@ export_proxy_variables
+ # Destination path for installation ``DEST``
+ DEST=${DEST:-/opt/stack}
+ 
++# Set default type of Management Network. It can be either ipv4 or ipv6
++IP_MGMT_NET=${IP_MGMT_NET:-ipv4}
+ 
+ # Sanity Check
+ # ------------
+@@ -265,8 +267,14 @@ check_path_perm_sanity ${DEST}
+ # Certain services such as rabbitmq require that the local hostname resolves
+ # correctly.  Make sure it exists in /etc/hosts so that is always true.
+ LOCAL_HOSTNAME=`hostname -s`
+-if [ -z "`grep ^127.0.0.1 /etc/hosts | grep $LOCAL_HOSTNAME`" ]; then
+-    sudo sed -i "s/\(^127.0.0.1.*\)/\1 $LOCAL_HOSTNAME/" /etc/hosts
++if [[ "$IP_MGMT_NET" == "ipv6" ]]; then
++    if [ -z "`grep ^::1 /etc/hosts | grep $LOCAL_HOSTNAME`" ]; then
++        sudo sed -i "s/\(^::1.*\)/\1 $LOCAL_HOSTNAME/" /etc/hosts
++    fi
++else
++    if [ -z "`grep ^127.0.0.1 /etc/hosts | grep $LOCAL_HOSTNAME`" ]; then
++        sudo sed -i "s/\(^127.0.0.1.*\)/\1 $LOCAL_HOSTNAME/" /etc/hosts
++    fi
+ fi
+ 
+ # Destination path for service data
+-- 
+1.9.1
+
