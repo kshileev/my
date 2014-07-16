@@ -617,7 +617,7 @@ function PingNode
 }
 function ksMyEnvDeploy()
 {
-    local my_env_command=$(ksGetInput 'local remote')
+    local my_env_command=$(ksGetInput 'local remote update' update)
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
@@ -630,6 +630,10 @@ function ksMyEnvDeploy()
 	read -p "Choose node where to deploy: " Node
 	echo "Deploing to ${Node}:"
 	scp -p ${MY_BASH_RC} ~/.bash_profile ${MY_VIM_RC} localadmin@${Node}:
+	;;
+    update)
+	cd ${MY_DIR}
+	git pull
 	;;
     *)
 	echo Command ${my_env_comand} is wrong, nothing to do
