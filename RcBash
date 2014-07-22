@@ -640,20 +640,6 @@ function ksMyEnvDeploy()
 	;;
     esac
 }
-function ksSecPasswords
-{
-    echo Operations with p12 and pem public-private pairs
-    ls $HOME/.ssh/*
-    read -p " Public  key: " Public  ; [ -z "$Public"  ] && return
-    read -p " Private key: " Private ; [ -z "$Private" ] && return
-
-    local out1=$(openssl rsa -in ${Private} -noout -modulus)
-    local out2=$(openssl x509 -in ${Public} -noout -modulus)
-    echo ${Public} and ${Private}
-    [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
-    #alias   0p12pub="openssl pkcs12 -clcerts -nokeys -in KirINFN.p12 -out KirINFN.pem"
-    #alias   0p12pri="openssl pkcs12 -nocerts -in KirINFN.p12 -out KirPrivate.pem"
-}
 function ksCheckOs
 { # we're running on deb based or rpm based OS?
   local deb=/etc/debian_version
@@ -913,6 +899,17 @@ diff -pNU7 # p for function N
 russup@support.swsoft.com girl:click.bravo
 EOF
 }
+function ksRefPuppet {
+   cat <<EOF
+git clone https://github.com/CiscoSystems/puppet_openstack_builder
+cd puppet_openstack_builder
+git checkout icehouse
+cd install-scripts
+export build_server_ip=<YOUR_BUILD_NODE_IP>
+bash setup.sh
+puppet aggent -td --server=build-server.domain.name --pluginsync
+EOF
+}
 function ksRefOS
 {
 cat <<EOF
@@ -960,7 +957,7 @@ EOF
 }
 function ksSshKey
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(ksGetInput 'add-public add-private')}
+    local ssh_command=${1:-$(ksGetInput 'add-public add-private compare-keys fingeprint')}
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
 	    add-public)
@@ -977,6 +974,24 @@ function ksSshKey
             read -p 'Enter key: ' key
             [ -f ${key} ] && ssh-add ${key}
 	    ;;
+	    compare-keys)
+            echo Operations with p12 and pem public-private pairs
+            ls ${HOME}/.ssh/*
+            read -p " Public  key: " Public  ; [ -z "$Public"  ] && return
+            read -p " Private key: " Private ; [ -z "$Private" ] && return
+
+            local out1=$(openssl rsa -in ${Private} -noout -modulus)
+            local out2=$(openssl x509 -in ${Public} -noout -modulus)
+            echo ${Public} and ${Private}
+            [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
+        ;;
+        fingerprint)
+            ls ${HOME}/.ssh/*
+            local private
+            read -p " Which private key: " private  ; [ -z "${private}"  ] && return
+            ssh-keygen -yf ${private} > ${private}.pub
+            ssh-keygen -lf ${private}
+        ;;
 	    *)  echo Wrong command, nothing to do! ;;
     esac
 }
