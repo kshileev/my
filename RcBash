@@ -95,8 +95,8 @@ function ksVirtVm()
 }
 function ksVirtStatus()
 {
-    echo Virtual machines: &&  sudo virsh list --all
-    echo Virtual networks: &&  sudo virsh net-list --all
+    echo Virtual machines: &&  virsh list --all
+    echo Virtual networks: &&  virsh net-list --all
     echo Bridges: && brctl show
     ksPrintSeparator
 }
@@ -107,8 +107,10 @@ function ksVirt()
     local virsh_command=$(ksGetInput 'kill-all new-vm')
     case ${virsh_command} in
         kill-all)
-	         virsh list --all | cut -d " " -f7 | grep -v ^---- | xargs -n 1 virsh undefine
-	         virsh net-list --all | cut -d " " -f2 | grep -v ^---- | xargs -n1 virsh net-undefine
+	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
+	         virsh list --all | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh undefine
+	         virsh net-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-destroy
+	         virsh net-list -all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
 	       ;;
         new-vm) ksVirtVm ;;
 	     *)  echo Command ${virsh_command} is wrong, nothing to do! ;;
