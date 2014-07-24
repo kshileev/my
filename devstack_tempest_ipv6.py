@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright 2014 Cisco Systems, Inc.
 #
-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
 #    a copy of the License at
 #
@@ -25,15 +25,8 @@
 # (4) Run stack.sh
 # (6) Run tempest tests
 
-import os
-import re
-import subprocess
-import sys
-import time
-
 
 log_prefix = 'ipv6'
-log_path = '/opt/stack/logs'
 devstack_repo = 'git://github.com/openstack-dev/devstack.git'
 cleanup_kill_projects = ['neutron-', 'nova', 'glance',
                          'cinder', 'keystone']
@@ -48,15 +41,11 @@ cleanup_libvirt_log = '/var/log/libvirt/libvirtd.log'
 cleanup_dpkg_lock = '/var/lib/dpkg/lock'
 neutron_log_file = 'ipv6-neutron-server.log'
 
-banner_fmt = '''
-    ***************************************
-    * %s *
-    ***************************************'''
 
-do_reclone = True
+#do_reclone = True # without radvd with radvd - False
 
-localrc_tempest = '''
-MYSQL_PASSWORD=nova
+
+local_rc_template = '''MYSQL_PASSWORD=nova
 RABBIT_PASSWORD=nova
 SERVICE_TOKEN=nova
 SERVICE_PASSWORD=nova
@@ -77,61 +66,48 @@ VOLUME_BACKING_FILE_SIZE=2052M
 API_RATE_LIMIT=False
 VERBOSE=True
 DEBUG=True
-LOGFILE=%s/stack.sh.log
+LOGFILE={0}/stack.sh.log
 USE_SCREEN=True
-SCREEN_LOGDIR=%s
+SCREEN_LOGDIR={0}
 '''
 
-do_reclone_flags = '''
-#RECLONE=no
-#OFFLINE=True
-'''
-
-no_reclone_flags = '''
-RECLONE=no
-OFFLINE=True
-'''
-
-
-def print_date():
-    output, rc = run_cmd_line('date --utc', echo_cmd=False, check_result=False)
-    print output
 
 def print_banner(msg):
-    print banner_fmt % msg
-    print_date()
+    from datetime import datetime
 
-def run_devstack_and_tempest():
+    print '''
+    ***************************************
+    * {0} *
+    ***************************************
+    ZULU {1}  UTC {2}'''.format(msg, datetime.now(), datetime.utcnow())
+
+
+def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
     print_banner('     Run DevStack and Tempest      ')
 
-    devstack_dir = os.path.expanduser('~/devstack')
-    localrc_path = os.path.expanduser('~/devstack/localrc')
-
-    cleanup_previous_devstack(devstack_dir)
-    if do_reclone and not os.path.isdir(devstack_dir):
+    cleanup_previous_devstack(devstack_dir, is_clean_opt=is_re_clone_devstack)
+    if is_re_clone_devstack and not os.path.isdir(devstack_dir):
         clone_devstack(devstack_dir)
-    create_localrc(localrc_path, log_path)
-    run_devstack(devstack_dir, log_path)
-    # Comment out next 3 lines. Currently no bugs to temporarily patch around.
-    #patch_neutron_bugs()
-    #restart_neutron_processes()
-    #time.sleep(5)
-    passed = run_tempest_tests()
-    print 'TEMPEST %s' % 'PASSED!' if passed else 'FAILED'
-    #cleanup_current_devstack(devstack_dir)
-    print 'Done'
-    print_date()
-    sys.exit(0 if passed else 1)
 
-def cleanup_previous_devstack(devstack_dir):
+    create_devstack_local_rc(devstack_dir=devstack_dir, is_reclone=is_re_clone_devstack, is_ipv6=is_v6)
+
+    if is_v6:
+        patch_ipv6_devstack(devstack_dir)
+
+    run_devstack_dot_stack(devstack_dir)
+
+    if is_v6:
+        patch_ipv6_radvd_neutron()
+        do_restack(devstack_dir)
+
+        # Comment out next 3 lines. Currently no bugs to temporarily patch around.
+        #patch_neutron_bugs()
+        #restart_neutron_processes()
+        #time.sleep(5)
+
+
+def cleanup_previous_devstack(devstack_dir, is_clean_opt):
     print_banner('Clean up previous DevStack instance')
-    cleanup_devstack(devstack_dir)
-
-def cleanup_current_devstack(devstack_dir):
-    print_banner('    Clean up DevStack instance     ')
-    cleanup_devstack(devstack_dir)
-
-def cleanup_devstack(devstack_dir):
     if os.path.isdir(devstack_dir):
         os.chdir(devstack_dir)
         run_cmd_line('./unstack.sh', check_result=False)
@@ -139,43 +115,75 @@ def cleanup_devstack(devstack_dir):
         run_cmd_line('pkill -f %s' % project, check_result=False)
     run_cmd_line('sudo rm %s' % cleanup_dpkg_lock, check_result=False)
     run_cmd_line('sudo rm %s' % cleanup_libvirt_log, check_result=False)
-    if do_reclone:
+    if is_clean_opt:
         remove_subdir('/opt')
         #remove_subdir(devstack_dir)
 
+
+def do_restack(devstack_dir):
+    import time
+    import sys
+
+    print_banner('    Re-Stacking (unstack/stack)    ')
+    os.chdir(devstack_dir)
+    run_cmd_line('./unstack.sh', check_result=False)
+    time.sleep(3)
+    output, stack_rc = run_cmd_line('./stack.sh', check_result=False)
+    if stack_rc:
+        print_banner('stack.sh FAILED')
+        sys.exit(stack_rc)
+
+
 def clone_devstack(abs_path_to_clone_to):
     print_banner('         Cloning DevStack          ')
-    run_cmd_line('git clone %s %s' % (devstack_repo,abs_path_to_clone_to))
+    run_cmd_line('git clone %s %s' % (devstack_repo, abs_path_to_clone_to))
 
-def create_localrc(localrc_path, log_path):
-    print_banner('  Create localrc for Cisco plugin  ')
-    if do_reclone:
-        reclone_flags = do_reclone_flags
-    else:
-        reclone_flags = no_reclone_flags
-    localrc = localrc_tempest % (log_path, log_path) + reclone_flags 
-    f = open(localrc_path, 'w')
-    f.write(localrc)
-    print localrc
 
-def run_devstack(devstack_dir, log_path):
-    print_banner('         Running DevStack          ')
+def create_devstack_local_rc(devstack_dir, is_ipv6, is_reclone):
+    print_banner('  Create devstack localrc  ')
+
+    do_re_clone_flags = '#RECLONE=no\n#OFFLINE=True'
+    no_re_clone_flags = 'RECLONE=no\nOFFLINE=True'
+    add_ipv6 = 'IP_VERSION=4+6\nIPV6_PRIVATE_RANGE={0}/64\nIPV6_NETWORK_GATEWAY={0}1\nREMOVE_PUBLIC_BRIDGE=False\n'.format('2001:dead:beef:deed::')
+
+    body = local_rc_template.format('/opt/stack/logs') + add_ipv6 if is_ipv6 else '' + do_re_clone_flags if is_reclone else no_re_clone_flags
+    with open(devstack_dir + '/localrc', 'w') as f:
+        f.write(body)
+    print body
+
+
+def run_devstack_dot_stack(devstack_dir):
+    import sys
+
+    print_banner('Running DevStack ./stack.sh')
     os.chdir(devstack_dir)
     output, stack_rc = run_cmd_line('./stack.sh', check_result=False)
     if stack_rc:
-        print 'stack.sh FAILED'
-        print_date()
+        print_banner('stack.sh FAILED')
         sys.exit(stack_rc)
+
 
 def remove_subdir(subdir):
     run_cmd_line('sudo rm -rf %s' % subdir, check_result=False)
 
-def patch_neutron_bugs():
-    print_banner('   Applying Temp Neutron Patches   ')
-    output, rc = run_cmd_line(neutron_patch_script, check_result=False)
+
+def patch_ipv6_devstack(devstack_dir):
+    print_banner(" Applying Robert's DevStack Patch  ")
+    os.chdir(devstack_dir)
+    output, rc = run_cmd_line('git review -d 87987')
     print output
 
+
+def patch_ipv6_radvd_neutron():
+    print_banner('   Applying RADVD Neutron Patch    ')
+    os.chdir(neutron_dir)
+    output, rc = run_cmd_line('git review -d 102648')
+    print output
+
+
 def restart_neutron_processes():
+    import re
+
     print_banner('    Restarting Neutron Processes   ')
     reg_exes = {}
     for proc in neutron_restart_procs:
@@ -187,29 +195,32 @@ def restart_neutron_processes():
         for proc, reg_ex in reg_exes.items():
             result = reg_ex.search(line)
             if result:
-                 print 'Found ', proc
-                 print 'Command line: ', line
-                 print 'Restarting ', proc
-                 # Kill the process
-                 out, rc = run_cmd_line('kill -9 %d' %
-                                        int(result.group('pid')),
-                                        check_result=False)
-                 # Re-run the  process if kill was successful
-                 if not rc:
-                     filename = os.path.join(log_prefix + '-' + proc + '.log')
-                     cmd = result.group('cmd') + ' > %s 2>&1 &' % filename
-                     print cmd
-                     os.system(cmd)
+                print 'Found ', proc
+                print 'Command line: ', line
+                print 'Restarting ', proc
+                # Kill the process
+                out, rc = run_cmd_line('kill -9 %d' %
+                                       int(result.group('pid')),
+                                       check_result=False)
+                # Re-run the  process if kill was successful
+                if not rc:
+                    filename = os.path.join(log_prefix + '-' + proc + '.log')
+                    cmd = result.group('cmd') + ' > %s 2>&1 &' % filename
+                    print cmd
+                    os.system(cmd)
     print 'Neutron processes: '
     ps_output, rc = run_cmd_line('ps -ef')
     for line in ps_output.splitlines():
         for proc, reg_ex in reg_exes.items():
             result = reg_ex.search(line)
             if result:
-                 print line
+                print line
 
-def run_cmd_line(cmd_str, stderr=None, shell=False,
-                 echo_cmd=True, check_result=True):
+
+def run_cmd_line(cmd_str, std_err=None, shell=False, echo_cmd=True, check_result=True):
+    import subprocess
+    import sys
+
     if echo_cmd:
         print cmd_str
     if shell:
@@ -217,38 +228,68 @@ def run_cmd_line(cmd_str, stderr=None, shell=False,
     else:
         cmd_args = cmd_str.split()
     output = None
-    returncode = 0
+    return_code = 0
     try:
-        output = subprocess.check_output(cmd_args, shell=shell, stderr=stderr)
+        output = subprocess.check_output(cmd_args, shell=shell, stderr=std_err)
     except subprocess.CalledProcessError as e:
         if check_result:
             print e
             sys.exit(e.returncode)
         else:
-            returncode = e.returncode
-    return output, returncode
+            return_code = e.returncode
+    return output, return_code
 
-def run_tempest_tests():
-    print_banner('       Running Tempest Tests       ')
+
+def run_tempest_tests(test_list_file):
+    import os
+
+    print_banner('      Running Tempest Tests       ')
     os.chdir(tempest_dir)
     if not os.path.isdir('.testrepository'):
         run_cmd_line('testr init', check_result=False)
     logfile = os.path.join(log_prefix + '_tempest_log.txt')
     print 'Tests to be run:'
-    test_list_file='/tmp/tempest_tests.txt'
     output, rc = run_cmd_line('cat %s' % test_list_file, check_result=False)
     print output
     cmd = 'testr run --load-list=%s > %s' % (test_list_file, logfile)
     print cmd
     result = os.system(cmd)
+
+    print_banner('TEMPEST {0}'.format('PASSED!' if result else 'FAILED'))
     return result == 0
+
+
+def correct_devstack_dir(devstack_dir):
+    import os
+
+    abs_dir = os.path.abspath(devstack_dir)
+    base_dir = os.path.dirname(abs_dir)
+    if os.access(abs_dir, os.W_OK) or os.access(base_dir, os.W_OK):
+        return abs_dir
+    else:
+        raise argparse.ArgumentTypeError('Not possible to clone devstack to {0}'.format(abs_dir))
+
+
+def correct_tempest_list_file(path):
+    import os
+
+    if os.path.isfile(path):
+        return os.path.abspath(path)
+    else:
+        raise argparse.ArgumentTypeError('Could not read file {0}'.format(path))
+
 
 if __name__ == '__main__':
     import argparse
-    import shutil
+    import os
 
-    parser = argparse.ArgumentParser(description='Install devstack and run tempests provided by user')
-    parser.add_argument('tempest_list', type=argparse.FileType('r'), help='file which lists tempests to be run')
+    parser = argparse.ArgumentParser(description='Install devstack and run tempests if provided by user')
+    parser.add_argument('--devstack-dir', default=os.path.expanduser('~/devstack'), type=correct_devstack_dir, help='folder where to clone devstack')
+    parser.add_argument('--is-re-clone', default=True, type=bool, help='do we need to re-clone devstack')
+    parser.add_argument('--is-v6', default=True, type=bool, help='do we need apply to configure in ipv6')
+    parser.add_argument('tempest_list_file', default=None, nargs='?', type=correct_tempest_list_file, help='file which lists tempests to execute')
     args = parser.parse_args()
-    shutil.copyfile(args.tempest_list.name, '/tmp/tempest_tests.txt')
-    run_devstack_and_tempest()
+
+    deploy_devstack(devstack_dir=args.devstack_dir,is_re_clone_devstack=args.is_re_clone,is_v6=args.is_v6)
+    if args.tempest_list_file:
+        run_tempest_tests(args.tempest_list_file)

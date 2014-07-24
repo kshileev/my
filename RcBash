@@ -8,9 +8,9 @@ PS1="\!:\W> "						#prompt: 22:dirname>
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
-export MY_BASH_RC=$(find ~ -name RcBash)
-export MY_VIM_RC=$(find ~ -name RcVim)
-export MY_DIR=$(dirname ${MY_BASH_RC})
+export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
+export MY_BASH_RC=${MY_DIR}/RcBash
+export MY_VIM_RC=${MY_DIR}/RcVim
 mkdir -p ${MY_TMP_DIR}
 export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
