@@ -471,6 +471,7 @@ function ksAliasDefine()
     alias dm='dmesg'
     alias du='du -h'
     alias gb='git branch'
+    alias gc='git checkout -- .'
     alias gd='git diff'
     alias gl='git log'
     alias gr='git remote -v'
