@@ -25,26 +25,6 @@
 # (4) Run stack.sh
 # (6) Run tempest tests
 
-
-log_prefix = 'ipv6'
-devstack_repo = 'git://github.com/openstack-dev/devstack.git'
-cleanup_kill_projects = ['neutron-', 'nova', 'glance',
-                         'cinder', 'keystone']
-neutron_restart_procs = [
-    'neutron-server', 'neutron-openvswitch-agent',
-    'neutron-dhcp-agent', 'neutron-l3-agent',
-    'neutron-metadata-agent', 'neutron-lbaas-agent']
-openstack_dir = '/opt/stack/'
-neutron_dir = openstack_dir + 'neutron/'
-tempest_dir = openstack_dir + 'tempest/'
-cleanup_libvirt_log = '/var/log/libvirt/libvirtd.log'
-cleanup_dpkg_lock = '/var/lib/dpkg/lock'
-neutron_log_file = 'ipv6-neutron-server.log'
-
-
-#do_reclone = True # without radvd with radvd - False
-
-
 local_rc_template = '''MYSQL_PASSWORD=nova
 RABBIT_PASSWORD=nova
 SERVICE_TOKEN=nova
@@ -96,9 +76,9 @@ def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
 
     run_devstack_dot_stack(devstack_dir)
 
-    if is_v6:
-        patch_ipv6_radvd_neutron()
-        do_restack(devstack_dir)
+    # if is_v6:
+    #     patch_ipv6_radvd_neutron() #apply 102648
+    #     do_restack(devstack_dir)
 
         # Comment out next 3 lines. Currently no bugs to temporarily patch around.
         #patch_neutron_bugs()
@@ -111,10 +91,10 @@ def cleanup_previous_devstack(devstack_dir, is_clean_opt):
     if os.path.isdir(devstack_dir):
         os.chdir(devstack_dir)
         run_cmd_line('./unstack.sh', check_result=False)
-    for project in cleanup_kill_projects:
+    for project in ['neutron-', 'nova', 'glance', 'cinder', 'keystone']:
         run_cmd_line('pkill -f %s' % project, check_result=False)
-    run_cmd_line('sudo rm %s' % cleanup_dpkg_lock, check_result=False)
-    run_cmd_line('sudo rm %s' % cleanup_libvirt_log, check_result=False)
+    run_cmd_line('sudo rm /var/lib/dpkg/lock', check_result=False)
+    run_cmd_line('sudo rm /var/log/libvirt/libvirtd.log', check_result=False)
     if is_clean_opt:
         remove_subdir('/opt')
         #remove_subdir(devstack_dir)
@@ -136,7 +116,7 @@ def do_restack(devstack_dir):
 
 def clone_devstack(abs_path_to_clone_to):
     print_banner('         Cloning DevStack          ')
-    run_cmd_line('git clone %s %s' % (devstack_repo, abs_path_to_clone_to))
+    run_cmd_line('git clone git://github.com/openstack-dev/devstack.git {0}'.format(abs_path_to_clone_to))
 
 
 def create_devstack_local_rc(devstack_dir, is_ipv6, is_reclone):
@@ -174,19 +154,12 @@ def patch_ipv6_devstack(devstack_dir):
     print output
 
 
-def patch_ipv6_radvd_neutron():
-    print_banner('   Applying RADVD Neutron Patch    ')
-    os.chdir(neutron_dir)
-    output, rc = run_cmd_line('git review -d 102648')
-    print output
-
-
 def restart_neutron_processes():
     import re
 
     print_banner('    Restarting Neutron Processes   ')
     reg_exes = {}
-    for proc in neutron_restart_procs:
+    for proc in ['neutron-server', 'neutron-openvswitch-agent', 'neutron-dhcp-agent', 'neutron-l3-agent', 'neutron-metadata-agent', 'neutron-lbaas-agent']:
         reg_exes[proc] = re.compile(
             "^(?P<uid>\S+)\s+(?P<pid>\d+)\s+(?P<ppid>\d+).*python(?P<cmd>.*%s.*)"
             % proc)
@@ -204,7 +177,7 @@ def restart_neutron_processes():
                                        check_result=False)
                 # Re-run the  process if kill was successful
                 if not rc:
-                    filename = os.path.join(log_prefix + '-' + proc + '.log')
+                    filename = os.path.join('ipv6-' + proc + '.log')
                     cmd = result.group('cmd') + ' > %s 2>&1 &' % filename
                     print cmd
                     os.system(cmd)
@@ -244,10 +217,10 @@ def run_tempest_tests(test_list_file):
     import os
 
     print_banner('      Running Tempest Tests       ')
-    os.chdir(tempest_dir)
+    os.chdir('/opt/stack/tempest/')
     if not os.path.isdir('.testrepository'):
         run_cmd_line('testr init', check_result=False)
-    logfile = os.path.join(log_prefix + '_tempest_log.txt')
+    logfile = os.path.join('ipv6_tempest_log.txt')
     print 'Tests to be run:'
     output, rc = run_cmd_line('cat %s' % test_list_file, check_result=False)
     print output
@@ -290,6 +263,6 @@ if __name__ == '__main__':
     parser.add_argument('tempest_list_file', default=None, nargs='?', type=correct_tempest_list_file, help='file which lists tempests to execute')
     args = parser.parse_args()
 
-    deploy_devstack(devstack_dir=args.devstack_dir,is_re_clone_devstack=args.is_re_clone,is_v6=args.is_v6)
+    deploy_devstack(devstack_dir=args.devstack_dir, is_re_clone_devstack=args.is_re_clone, is_v6=args.is_v6)
     if args.tempest_list_file:
         run_tempest_tests(args.tempest_list_file)
