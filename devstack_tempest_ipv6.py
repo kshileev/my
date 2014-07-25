@@ -72,7 +72,7 @@ def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
     create_devstack_local_rc(devstack_dir=devstack_dir, is_reclone=is_re_clone_devstack, is_ipv6=is_v6)
 
     if is_v6:
-        patch_ipv6_devstack(devstack_dir)
+        patch_devstack(devstack_dir, '87987')
 
     run_devstack_dot_stack(devstack_dir)
 
@@ -147,10 +147,10 @@ def remove_subdir(subdir):
     run_cmd_line('sudo rm -rf %s' % subdir, check_result=False)
 
 
-def patch_ipv6_devstack(devstack_dir):
-    print_banner(" Applying Robert's DevStack Patch  ")
+def patch_devstack(devstack_dir, patch_id):
+    print_banner('Applying DevStack Patch: {0}'.format(patch_id))
     os.chdir(devstack_dir)
-    output, rc = run_cmd_line('git review -d 87987')
+    output, rc = run_cmd_line('git review -d {0}'.format(patch_id))
     print output
 
 
