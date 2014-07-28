@@ -123,7 +123,7 @@ function ksGetInput()
     [ -n "${command}" ] && [[ "${commands}" == *${command}* ]] && echo ${command} && return
     local default_command=$(echo ${commands} | cut -d ' ' -f1)
     local input
-    read -p "Possible commands: ${commands} [default=${default_command}]: " input
+    read -p "Possible inputs: ${commands} [default=${default_command}]: " input
     echo ${input:-${default_command}}
 }
 function ksNova()
@@ -871,13 +871,21 @@ EOF
 function ksRefNet {
 cat <<EOF
 route add -host 10.20.30.40 gw vas1
+
+ip l s vlan105 up
+ip -6 a a fd00:1::c:2947:4f93/64 dev eth0
 ip r a 10.0.15.0/28 via 10.30.1.180
 ip r a 10.0.5.1 dev vlan105
 ip r c default via 10.20.30.40 dev eth0
-ip l s vlan105 up
 brctl addif br105 vlan105
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+EOF
+}
+function ksRefRe {
+cat <<EOF
+find $HOME -name *.c[]
+grep -E "foo|bar"
 EOF
 }
 function ksRef {
@@ -960,13 +968,14 @@ EOF
 }
 function ksSshKey
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(ksGetInput 'add-public add-private compare-keys fingeprint')}
+    local ssh_command=${1:-$(ksGetInput 'pair-ssh add-public add-private pair-cert fingerprint')}
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
 	    add-public)
 	        mkdir -p ~/.ssh
 	        [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
 	        [ -z "$(grep "${kir_vaio_pub}" ~/.ssh/authorized_keys)" ] && echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
+	        echo "KirVaio public key is added"
 	    ;;
 	    add-private)
             [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
@@ -977,7 +986,7 @@ function ksSshKey
             read -p 'Enter key: ' key
             [ -f ${key} ] && ssh-add ${key}
 	    ;;
-	    compare-keys)
+	    pair-cert)
             echo Operations with p12 and pem public-private pairs
             ls ${HOME}/.ssh/*
             read -p " Public  key: " Public  ; [ -z "$Public"  ] && return
@@ -988,10 +997,21 @@ function ksSshKey
             echo ${Public} and ${Private}
             [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
         ;;
+	    pair-ssh)
+            echo Check that given files are indeed ssh private-public pair
+            local files=$(ls ${HOME}/.ssh/*)
+            local public=$(ksGetInput "$files")
+            local private=$(ksGetInput "$files")
+
+            local out1=$(ssh-keygen -yf ${private})
+            local out2=$(cat ${public})
+            echo ${public} and ${private}
+            [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
+        ;;
         fingerprint)
             ls ${HOME}/.ssh/*
-            local private
-            read -p " Which private key: " private  ; [ -z "${private}"  ] && return
+            local public
+            read -p " Which public key: " private  ; [ -z "${public}"  ] && return
             ssh-keygen -yf ${private} > ${private}.pub
             ssh-keygen -lf ${private}
         ;;
