@@ -25,7 +25,8 @@
 # (4) Run stack.sh
 # (6) Run tempest tests
 
-local_rc_template = '''MYSQL_PASSWORD=nova
+local_rc_template = '''[[local|localrc]]
+MYSQL_PASSWORD=nova
 RABBIT_PASSWORD=nova
 SERVICE_TOKEN=nova
 SERVICE_PASSWORD=nova
@@ -69,7 +70,7 @@ def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
     if is_re_clone_devstack and not os.path.isdir(devstack_dir):
         clone_devstack(devstack_dir)
 
-    create_devstack_local_rc(devstack_dir=devstack_dir, is_reclone=is_re_clone_devstack, is_ipv6=is_v6)
+    create_devstack_config(devstack_dir=devstack_dir, is_reclone=is_re_clone_devstack, is_ipv6=is_v6)
 
     if is_v6:
         patch_devstack(devstack_dir, '87987')
@@ -119,15 +120,15 @@ def clone_devstack(abs_path_to_clone_to='$HOME/devstack'):
     run_cmd_line('git clone git://github.com/openstack-dev/devstack.git {0}'.format(abs_path_to_clone_to))
 
 
-def create_devstack_local_rc(devstack_dir, is_ipv6, is_reclone):
-    print_banner('  Create devstack localrc  ')
+def create_devstack_config(devstack_dir, is_ipv6=True, is_reclone=False):
+    print_banner('  Create devstack local.conf  ')
 
     do_re_clone_flags = '#RECLONE=no\n#OFFLINE=True'
     no_re_clone_flags = 'RECLONE=no\nOFFLINE=True'
     add_ipv6 = 'IP_VERSION=4+6\nIPV6_PRIVATE_RANGE={0}/64\nIPV6_NETWORK_GATEWAY={0}1\nREMOVE_PUBLIC_BRIDGE=False\n'.format('2001:dead:beef:deed::')
 
     body = local_rc_template.format('/opt/stack/logs') + add_ipv6 if is_ipv6 else '' + do_re_clone_flags if is_reclone else no_re_clone_flags
-    with open(devstack_dir + '/localrc', 'w') as f:
+    with open(devstack_dir + '/local.conf', 'w') as f:
         f.write(body)
     print body
 
@@ -231,7 +232,7 @@ def run_tempest_tests(test_list_file):
 
 
 def install_prerequisites():
-    out,rc = run_cmd_line('dpkg -l git-review', raise_exception_on_error=False)
+    out, rc = run_cmd_line('dpkg -l git-review', raise_exception_on_error=False)
     if rc:
         run_cmd_line('sudo apt-get install git-review -y')
 
