@@ -231,7 +231,7 @@ def run_tempest_tests(test_list_file):
 
 
 def install_prerequisites():
-    out,rc = run_cmd_line('git review', raise_exception_on_error=False)
+    out,rc = run_cmd_line('dpkg -l git-review', raise_exception_on_error=False)
     if rc:
         run_cmd_line('sudo apt-get install git-review -y')
 
