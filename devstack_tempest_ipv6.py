@@ -63,7 +63,7 @@ def print_banner(msg):
 
 
 def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
-    print_banner('     Run DevStack and Tempest      ')
+    print_banner('     Deploy DevStack')
 
     cleanup_previous_devstack(devstack_dir, is_clean_opt=is_re_clone_devstack)
     if is_re_clone_devstack and not os.path.isdir(devstack_dir):
@@ -90,11 +90,11 @@ def cleanup_previous_devstack(devstack_dir, is_clean_opt):
     print_banner('Clean up previous DevStack instance')
     if os.path.isdir(devstack_dir):
         os.chdir(devstack_dir)
-        run_cmd_line('./unstack.sh', check_result=False)
+        run_cmd_line('./unstack.sh', raise_exception_on_error=False)
     for project in ['neutron-', 'nova', 'glance', 'cinder', 'keystone']:
-        run_cmd_line('pkill -f %s' % project, check_result=False)
-    run_cmd_line('sudo rm /var/lib/dpkg/lock', check_result=False)
-    run_cmd_line('sudo rm /var/log/libvirt/libvirtd.log', check_result=False)
+        run_cmd_line('pkill -f %s' % project, raise_exception_on_error=False)
+    run_cmd_line('sudo rm /var/lib/dpkg/lock', raise_exception_on_error=False)
+    run_cmd_line('sudo rm /var/log/libvirt/libvirtd.log', raise_exception_on_error=False)
     if is_clean_opt:
         remove_subdir('/opt')
         #remove_subdir(devstack_dir)
@@ -106,9 +106,9 @@ def do_restack(devstack_dir):
 
     print_banner('    Re-Stacking (unstack/stack)    ')
     os.chdir(devstack_dir)
-    run_cmd_line('./unstack.sh', check_result=False)
+    run_cmd_line('./unstack.sh', raise_exception_on_error=False)
     time.sleep(3)
-    output, stack_rc = run_cmd_line('./stack.sh', check_result=False)
+    output, stack_rc = run_cmd_line('./stack.sh', raise_exception_on_error=False)
     if stack_rc:
         print_banner('stack.sh FAILED')
         sys.exit(stack_rc)
@@ -137,14 +137,14 @@ def run_devstack_dot_stack(devstack_dir):
 
     print_banner('Running DevStack ./stack.sh')
     os.chdir(devstack_dir)
-    output, stack_rc = run_cmd_line('./stack.sh', check_result=False)
+    output, stack_rc = run_cmd_line('./stack.sh', raise_exception_on_error=False)
     if stack_rc:
         print_banner('stack.sh FAILED')
         sys.exit(stack_rc)
 
 
 def remove_subdir(subdir):
-    run_cmd_line('sudo rm -rf %s' % subdir, check_result=False)
+    run_cmd_line('sudo rm -rf %s' % subdir, raise_exception_on_error=False)
 
 
 def patch_devstack(devstack_dir, patch_id):
@@ -172,9 +172,7 @@ def restart_neutron_processes():
                 print 'Command line: ', line
                 print 'Restarting ', proc
                 # Kill the process
-                out, rc = run_cmd_line('kill -9 %d' %
-                                       int(result.group('pid')),
-                                       check_result=False)
+                out, rc = run_cmd_line('kill -9 %d' % int(result.group('pid')), raise_exception_on_error=False)
                 # Re-run the  process if kill was successful
                 if not rc:
                     filename = os.path.join('ipv6-' + proc + '.log')
@@ -190,7 +188,7 @@ def restart_neutron_processes():
                 print line
 
 
-def run_cmd_line(cmd_str, std_err=None, shell=False, echo_cmd=True, check_result=True):
+def run_cmd_line(cmd_str, std_err=None, shell=False, echo_cmd=True, raise_exception_on_error=True):
     import subprocess
     import sys
 
@@ -205,7 +203,7 @@ def run_cmd_line(cmd_str, std_err=None, shell=False, echo_cmd=True, check_result
     try:
         output = subprocess.check_output(cmd_args, shell=shell, stderr=std_err)
     except subprocess.CalledProcessError as e:
-        if check_result:
+        if raise_exception_on_error:
             print e
             sys.exit(e.returncode)
         else:
@@ -219,10 +217,10 @@ def run_tempest_tests(test_list_file):
     print_banner('      Running Tempest Tests       ')
     os.chdir('/opt/stack/tempest/')
     if not os.path.isdir('.testrepository'):
-        run_cmd_line('testr init', check_result=False)
+        run_cmd_line('testr init', raise_exception_on_error=False)
     logfile = os.path.join('ipv6_tempest_log.txt')
     print 'Tests to be run:'
-    output, rc = run_cmd_line('cat %s' % test_list_file, check_result=False)
+    output, rc = run_cmd_line('cat %s' % test_list_file, raise_exception_on_error=False)
     print output
     cmd = 'testr run --load-list=%s > %s' % (test_list_file, logfile)
     print cmd
@@ -230,6 +228,12 @@ def run_tempest_tests(test_list_file):
 
     print_banner('TEMPEST {0}'.format('PASSED!' if result else 'FAILED'))
     return result == 0
+
+
+def install_prerequisites():
+    out,rc = run_cmd_line('git review', raise_exception_on_error=False)
+    if rc:
+        run_cmd_line('sudo apt-get install git-review -y')
 
 
 def correct_devstack_dir(devstack_dir):
@@ -263,6 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('tempest_list_file', default=None, nargs='?', type=correct_tempest_list_file, help='file which lists tempests to execute')
     args = parser.parse_args()
 
+    install_prerequisites()
     deploy_devstack(devstack_dir=args.devstack_dir, is_re_clone_devstack=args.is_re_clone, is_v6=args.is_v6)
     if args.tempest_list_file:
         run_tempest_tests(args.tempest_list_file)
