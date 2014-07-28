@@ -114,7 +114,7 @@ def do_restack(devstack_dir):
         sys.exit(stack_rc)
 
 
-def clone_devstack(abs_path_to_clone_to):
+def clone_devstack(abs_path_to_clone_to='$HOME/devstack'):
     print_banner('         Cloning DevStack          ')
     run_cmd_line('git clone git://github.com/openstack-dev/devstack.git {0}'.format(abs_path_to_clone_to))
 
