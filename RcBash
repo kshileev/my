@@ -872,12 +872,13 @@ function ksRefNet {
 cat <<EOF
 route add -host 10.20.30.40 gw vas1
 
-ip l s vlan105 up
-ip -6 a a fd00:1::c:2947:4f93/64 dev eth0
-ip r a 10.0.15.0/28 via 10.30.1.180
-ip r a 10.0.5.1 dev vlan105
-ip r c default via 10.20.30.40 dev eth0
-brctl addif br105 vlan105
+sudo ip l s vlan105 up
+sudo ip -6 a a 2005:1975::1/64 dev eth0
+sudo ip -6 a d  2005:1969::1/64 dev eth0
+sudo ip r a 10.0.15.0/28 via 10.30.1.180
+sudo ip r a 10.0.5.1 dev vlan105
+sudo ip r c default via 10.20.30.40 dev eth0
+sudo brctl addif br105 vlan105
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
 EOF
