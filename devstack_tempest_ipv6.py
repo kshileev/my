@@ -125,9 +125,12 @@ def create_devstack_config(devstack_dir, is_ipv6=True, is_reclone=False):
 
     do_re_clone_flags = '#RECLONE=no\n#OFFLINE=True'
     no_re_clone_flags = 'RECLONE=no\nOFFLINE=True'
-    add_ipv6 = 'IP_VERSION=4+6\nIPV6_PRIVATE_RANGE={0}/64\nIPV6_NETWORK_GATEWAY={0}1\nREMOVE_PUBLIC_BRIDGE=False\n'.format('2001:dead:beef:deed::')
+    private_ipv6 = 'IP_VERSION=4+6\nIPV6_PRIVATE_RANGE={0}/64\nIPV6_NETWORK_GATEWAY={0}1\nREMOVE_PUBLIC_BRIDGE=False\n'.format('feee:1975::')
+    public_ipv6 = 'IPV6_PUBLIC_RANGE={0}/64\nIPV6_PUBLIC_NETWORK_GATEWAY={0}1\n'.format('2005:1975::')
 
-    body = local_rc_template.format('/opt/stack/logs') + add_ipv6 if is_ipv6 else '' + do_re_clone_flags if is_reclone else no_re_clone_flags
+    ipv6 = private_ipv6 + public_ipv6
+
+    body = local_rc_template.format('/opt/stack/logs') + ipv6 if is_ipv6 else '' + do_re_clone_flags if is_reclone else no_re_clone_flags
     with open(devstack_dir + '/local.conf', 'w') as f:
         f.write(body)
     print body
