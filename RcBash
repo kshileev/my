@@ -1026,5 +1026,9 @@ function ksJenkins
     sudo apt-get update
     sudo apt-get install jenkins
 }
+function ksShowProcess()
+{
+    ps auxw  | grep $1 | grep -v grep
+}
 
 ksAliasDefine
