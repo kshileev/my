@@ -86,10 +86,10 @@ def cleanup_previous_devstack(devstack_dir, is_clean_opt):
     import os
 
     print_banner('Clean up previous DevStack instance')
-    if os.path.isdir(devstack_dir) and os.path.isfile(devstack_dir + '/stack.sh'):
+    if os.path.isdir(devstack_dir) and os.path.isfile(devstack_dir + '/unstack.sh'):
         os.chdir(devstack_dir)
         run_cmd_line('./unstack.sh', raise_exception_on_error=False)
-    for project in ['neutron-', 'nova', 'glance', 'cinder', 'keystone']:
+    for project in ['neutron-', 'nova', 'glance', 'cinder', 'keystone', 'radvd']:
         run_cmd_line('pkill -f %s' % project, raise_exception_on_error=False)
     run_cmd_line('sudo rm -f /var/lib/dpkg/lock', raise_exception_on_error=False)
     run_cmd_line('sudo rm -f /var/log/libvirt/libvirtd.log', raise_exception_on_error=False)
