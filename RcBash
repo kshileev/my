@@ -495,6 +495,7 @@ function ksAliasDefine()
     alias ls='ls --color=auto'
     alias m='less'
     alias p="pstree -h"
+    alias pss='ksShowProcess'
     alias pw="ps uxwf"
     alias q='. ~/buzzoola/deploy/provision.sh'
     alias src=". ${MY_BASH_RC}"
