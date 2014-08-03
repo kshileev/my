@@ -23,7 +23,7 @@
 # (2) Clone devstack if not already present
 # (3) Create a localrc file
 # (4) Run stack.sh
-# (6) Run tempest tests
+# (6) (Optionally) Run tempest tests
 
 local_rc_template = '''[[local|localrc]]
 MYSQL_PASSWORD=nova
@@ -31,6 +31,7 @@ RABBIT_PASSWORD=nova
 SERVICE_TOKEN=nova
 SERVICE_PASSWORD=nova
 ADMIN_PASSWORD=nova
+
 ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-cond,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,rabbit
 enable_service mysql
 disable_service n-net
@@ -42,16 +43,32 @@ enable_service q-meta
 enable_service q-lbaas
 enable_service neutron
 enable_service tempest
+
 NOVA_USE_NEUTRON_API=v2
 VOLUME_BACKING_FILE_SIZE=2052M
 API_RATE_LIMIT=False
+
 VERBOSE=True
 DEBUG=True
-LOGFILE={0}/stack.sh.log
+
+LOGFILE=/opt/stack/logs/stack.sh.log
 USE_SCREEN=True
-SCREEN_LOGDIR={0}
+SCREEN_LOGDIR=/opt/stack/logs
+
+IP_VERSION={ip_version}
+IPV6_PRIVATE_RANGE=feee::/64
+IPV6_NETWORK_GATEWAY=feee::1
+
+REMOVE_PUBLIC_BRIDGE=False
+
+IPV6_PUBLIC_RANGE=2005::/64
+IPV6_PUBLIC_NETWORK_GATEWAY=2005::1
 '''
 
+local_rc_cisco_repo = '''
+TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
+TEMPEST_BRANCH=ipv6
+'''
 
 def print_banner(msg):
     from datetime import datetime
@@ -63,43 +80,24 @@ def print_banner(msg):
     ZULU {1}  UTC {2}'''.format(msg, datetime.now(), datetime.utcnow())
 
 
-def deploy_devstack(devstack_dir, is_re_clone_devstack, is_v6):
-    print_banner('     Deploy DevStack')
-
-    cleanup_previous_devstack(devstack_dir, is_clean_opt=is_re_clone_devstack)
-    if is_re_clone_devstack and not os.path.isdir(devstack_dir):
-        clone_devstack(devstack_dir)
-
-    create_devstack_config(devstack_dir=devstack_dir, is_reclone=is_re_clone_devstack, is_ipv6=is_v6)
-
-    if is_v6:
-        patch_devstack(devstack_dir, '87987')
-
-    run_devstack_dot_stack(devstack_dir)
-
-    # if is_v6:
-    #     patch_ipv6_radvd_neutron() #apply 102648
-    #     do_restack(devstack_dir)
-
-        # Comment out next 3 lines. Currently no bugs to temporarily patch around.
-        #patch_neutron_bugs()
-        #restart_neutron_processes()
-        #time.sleep(5)
-
 
 def cleanup_previous_devstack(devstack_dir, is_clean_opt):
+    import os
+    import time
+
     print_banner('Clean up previous DevStack instance')
-    if os.path.isdir(devstack_dir):
+    if os.path.isdir(devstack_dir) and os.path.isfile(devstack_dir + '/stack.sh'):
         os.chdir(devstack_dir)
         run_cmd_line('./unstack.sh', raise_exception_on_error=False)
     for project in ['neutron-', 'nova', 'glance', 'cinder', 'keystone']:
         run_cmd_line('pkill -f %s' % project, raise_exception_on_error=False)
-    run_cmd_line('sudo rm /var/lib/dpkg/lock', raise_exception_on_error=False)
-    run_cmd_line('sudo rm /var/log/libvirt/libvirtd.log', raise_exception_on_error=False)
+    run_cmd_line('sudo rm -f /var/lib/dpkg/lock', raise_exception_on_error=False)
+    run_cmd_line('sudo rm -f /var/log/libvirt/libvirtd.log', raise_exception_on_error=False)
     if is_clean_opt:
-        remove_subdir('/opt')
-        #remove_subdir(devstack_dir)
-
+        run_cmd_line('sudo rm -rf /opt')
+	base, last = os.path.split(devstack_dir)
+	run_cmd_line('cd {0} && rm -rf {1}'.format(base, last), shell=True, raise_exception_on_error=False)
+	time.sleep(1)
 
 def do_restack(devstack_dir):
     import time
@@ -118,19 +116,15 @@ def do_restack(devstack_dir):
 def clone_devstack(abs_path_to_clone_to='$HOME/devstack'):
     print_banner('         Cloning DevStack          ')
     run_cmd_line('git clone git://github.com/openstack-dev/devstack.git {0}'.format(abs_path_to_clone_to))
+    run_cmd_line('cd {0} && git config --global --add gitreview.username "kshileev"'.format(abs_path_to_clone_to), shell=True)
+    run_cmd_line('cd {0} && git review -s'.format(abs_path_to_clone_to), shell=True)
 
 
-def create_devstack_config(devstack_dir, is_ipv6=True, is_reclone=False):
+def create_devstack_config(devstack_dir, ip_version=6, is_cisco=True):
     print_banner('  Create devstack local.conf  ')
 
-    do_re_clone_flags = '#RECLONE=no\n#OFFLINE=True'
-    no_re_clone_flags = 'RECLONE=no\nOFFLINE=True'
-    private_ipv6 = 'IP_VERSION=4+6\nIPV6_PRIVATE_RANGE={0}/64\nIPV6_NETWORK_GATEWAY={0}1\nREMOVE_PUBLIC_BRIDGE=False\n'.format('feee:1975::')
-    public_ipv6 = 'IPV6_PUBLIC_RANGE={0}/64\nIPV6_PUBLIC_NETWORK_GATEWAY={0}1\n'.format('2005:1975::')
 
-    ipv6 = private_ipv6 + public_ipv6
-
-    body = local_rc_template.format('/opt/stack/logs') + ipv6 if is_ipv6 else '' + do_re_clone_flags if is_reclone else no_re_clone_flags
+    body = local_rc_template.format(ip_version=ip_version) + local_rc_cisco_repo if is_cisco else ''
     with open(devstack_dir + '/local.conf', 'w') as f:
         f.write(body)
     print body
@@ -145,10 +139,6 @@ def run_devstack_dot_stack(devstack_dir):
     if stack_rc:
         print_banner('stack.sh FAILED')
         sys.exit(stack_rc)
-
-
-def remove_subdir(subdir):
-    run_cmd_line('sudo rm -rf %s' % subdir, raise_exception_on_error=False)
 
 
 def patch_devstack(devstack_dir, patch_id):
@@ -235,12 +225,14 @@ def run_tempest_tests(test_list_file):
 
 
 def install_prerequisites():
+    print_banner('Checking and installing git-review')
     out, rc = run_cmd_line('dpkg -l git-review', raise_exception_on_error=False)
     if rc:
         run_cmd_line('sudo apt-get install git-review -y')
 
 
 def correct_devstack_dir(devstack_dir):
+    import argparse
     import os
 
     abs_dir = os.path.abspath(devstack_dir)
@@ -252,6 +244,7 @@ def correct_devstack_dir(devstack_dir):
 
 
 def correct_tempest_list_file(path):
+    import argparse
     import os
 
     if os.path.isfile(path):
@@ -259,6 +252,13 @@ def correct_tempest_list_file(path):
     else:
         raise argparse.ArgumentTypeError('Could not read file {0}'.format(path))
 
+def correct_ip_version(version):
+    import argparse
+
+    if version in ['4', '6', '4+6']:
+	return version
+    else:
+	raise argparse.ArgumentTypeError('Wrong ip version {0}'.format(version))
 
 if __name__ == '__main__':
     import argparse
@@ -267,11 +267,32 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Install devstack and run tempests if provided by user')
     parser.add_argument('--devstack-dir', default=os.path.expanduser('~/devstack'), type=correct_devstack_dir, help='folder where to clone devstack')
     parser.add_argument('--is-re-clone', default=True, type=bool, help='do we need to re-clone devstack')
-    parser.add_argument('--is-v6', default=True, type=bool, help='do we need apply to configure in ipv6')
+    parser.add_argument('--ip-version', default='6', type=correct_ip_version, help='ip version, could 4, 6 or 4+6')
+    parser.add_argument('--is-cisco', default=True, type=bool, help='do we need to clone tempest from Cisco repo')
     parser.add_argument('tempest_list_file', default=None, nargs='?', type=correct_tempest_list_file, help='file which lists tempests to execute')
     args = parser.parse_args()
 
+    print args
     install_prerequisites()
-    deploy_devstack(devstack_dir=args.devstack_dir, is_re_clone_devstack=args.is_re_clone, is_v6=args.is_v6)
+    cleanup_previous_devstack(args.devstack_dir, is_clean_opt=args.is_re_clone)
+    if args.is_re_clone:
+        clone_devstack(args.devstack_dir)
+
+    create_devstack_config(devstack_dir=args.devstack_dir, ip_version=args.ip_version)
+
+    if args.ip_version != '4':
+        patch_devstack(devstack_dir=args.devstack_dir, patch_id='87987')
+
+    run_devstack_dot_stack(args.devstack_dir)
+
+    # if is_v6:
+    #     patch_ipv6_radvd_neutron() #apply 102648
+    #     do_restack(devstack_dir)
+
+        # Comment out next 3 lines. Currently no bugs to temporarily patch around.
+        #patch_neutron_bugs()
+        #restart_neutron_processes()
+        #time.sleep(5)
+
     if args.tempest_list_file:
         run_tempest_tests(args.tempest_list_file)
