@@ -70,6 +70,7 @@ TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
 TEMPEST_BRANCH=ipv6
 '''
 
+
 def print_banner(msg):
     from datetime import datetime
 
@@ -83,7 +84,6 @@ def print_banner(msg):
 
 def cleanup_previous_devstack(devstack_dir, is_clean_opt):
     import os
-    import time
 
     print_banner('Clean up previous DevStack instance')
     if os.path.isdir(devstack_dir) and os.path.isfile(devstack_dir + '/stack.sh'):
@@ -97,7 +97,6 @@ def cleanup_previous_devstack(devstack_dir, is_clean_opt):
         run_cmd_line('sudo rm -rf /opt')
 	base, last = os.path.split(devstack_dir)
 	run_cmd_line('cd {0} && rm -rf {1}'.format(base, last), shell=True, raise_exception_on_error=False)
-	time.sleep(1)
 
 def do_restack(devstack_dir):
     import time
@@ -114,8 +113,9 @@ def do_restack(devstack_dir):
 
 
 def clone_devstack(abs_path_to_clone_to='$HOME/devstack'):
+    import os
     print_banner('         Cloning DevStack          ')
-    run_cmd_line('git clone git://github.com/openstack-dev/devstack.git {0}'.format(abs_path_to_clone_to))
+    run_cmd_line('cd {0} && git clone git://github.com/openstack-dev/devstack.git'.format(os.path.dirname(abs_path_to_clone_to)), shell=True)
     run_cmd_line('cd {0} && git config --global --add gitreview.username "kshileev"'.format(abs_path_to_clone_to), shell=True)
     run_cmd_line('cd {0} && git review -s'.format(abs_path_to_clone_to), shell=True)
 
@@ -263,6 +263,8 @@ def correct_ip_version(version):
 if __name__ == '__main__':
     import argparse
     import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    print script_dir
 
     parser = argparse.ArgumentParser(description='Install devstack and run tempests if provided by user')
     parser.add_argument('--devstack-dir', default=os.path.expanduser('~/devstack'), type=correct_devstack_dir, help='folder where to clone devstack')
@@ -282,6 +284,7 @@ if __name__ == '__main__':
 
     if args.ip_version != '4':
         patch_devstack(devstack_dir=args.devstack_dir, patch_id='87987')
+	run_cmd_line('cd {0} && patch -p1 < {1}/netns.diff'.format(args.devstack_dir, script_dir), shell=True)
 
     run_devstack_dot_stack(args.devstack_dir)
 
