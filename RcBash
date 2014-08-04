@@ -884,6 +884,7 @@ cat <<EOF
 route add -host 10.20.30.40 gw vas1
 
 sudo ip l a sniff type dummy                      add interfece sniff
+sudo ip l a link eth0 name eth0.2 type vlan id 2 loose_binding on
 sudo ip l s vlan105 up
 sudo ip l d br-int type dummy                     delete interface br-int
 sudo ip -6 a a 2005:1975::1/64 dev eth0
@@ -916,12 +917,17 @@ cscope: cscope -b -R #build reference file
 cscope -b -q -k
 
 
-while true ; do echo 123 ; done # busy cycle
 
 ps -L -p pid # shows all threads for process
 
 diff -pNU7 # p for function N
 russup@support.swsoft.com girl:click.bravo
+EOF
+}
+function ksRefBash() {
+    cat <<EOF
+for _ in `some_cmd`; do echo _ ; done
+while true ; do echo 123 ; done # busy cycle
 EOF
 }
 function ksRefPuppet {
@@ -946,7 +952,7 @@ function ksRefVim
 {
   cat << EOF
 vim "+e ++enc=utf8" #run vim with russian support (cp1251 utf8  koi8r cp866)
-open file under cursor: gf <C-w>f <C-w>gf in new tab
+open file under cursor:\t gf <C-w>f <C-w>gf in new tab
 go forth and back:\t <C-]> <C-T> <C-O>
 substitute:\t :%s/pattert/string/cg
 EOF
