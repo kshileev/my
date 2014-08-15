@@ -11,6 +11,7 @@ export MY_TMP_DIR=/tmp/${MY_USER}
 export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
 export MY_BASH_RC=${MY_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
+export SYSSCREENRC=${MY_DIR}/RcScreen
 mkdir -p ${MY_TMP_DIR}
 export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
@@ -620,7 +621,7 @@ function PingNode
 }
 function ksMyEnvDeploy()
 {
-    local my_env_command=$(ksGetInput 'local remote update' update)
+    local my_env_command=$(ksGetInput 'local remote update' $1)
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
@@ -872,7 +873,9 @@ function ksRefNet {
 cat <<EOF
 route add -host 10.20.30.40 gw vas1
 
+sudo ip l a sniff type dummy                      add interfece sniff
 sudo ip l s vlan105 up
+sudo ip l d br-int type dummy                     delete interface br-int
 sudo ip -6 a a 2005:1975::1/64 dev eth0
 sudo ip -6 a d  2005:1969::1/64 dev eth0
 sudo ip r a 10.0.15.0/28 via 10.30.1.180
@@ -1032,3 +1035,4 @@ function ksShowProcess()
 }
 
 ksAliasDefine
+[ -f /etc/bash_completion ] && . /etc/bash_completion
