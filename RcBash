@@ -13,7 +13,8 @@ export MY_BASH_RC=${MY_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
 export SYSSCREENRC=${MY_DIR}/RcScreen
 mkdir -p ${MY_TMP_DIR}
-export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope	#tmp dir where cscope stores the output
+export MY_CSCOPE_DIR=${MY_TMP_DIR}/cscope		#tmp dir where cscope stores the output
+export MY_CSCOPE_FILE_LIST=${MY_CSCOPE_DIR}/cscope.files	#file to list files to browse into db
 export LESSHISTFILE=${MY_TMP_DIR}/LessHist
 export HISTFILE=${MY_TMP_DIR}/BashHist
 export HISTSIZE=5000
@@ -449,14 +450,16 @@ function ksBootOnce
 }
 function ksCscopePrepare
 {
+    local what=$(ksGetInput 'devstack c-proj')
     echo Preparing CSCOPE to browse in $PWD
     mkdir -p ${MY_CSCOPE_DIR}
-    local File=${MY_CSCOPE_DIR}/cscope.files
-    find $PWD -name "*.[ch]" -o -name "*.[ch]pp" | grep -v ut/ | grep -v utils/ > ${File}
-    #find $HOME/Dropbox/ref/shell -name "*.[ch]" | grep -v "test/"  >> $File
-    cd ${MY_CSCOPE_DIR}
-    cscope -b -q -k
-    cd -
+    case ${what} in
+	devstack) find ${PWD} -name stack.sh -o -name functions -o -name neutron > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q && cd -
+	    ;;
+	c-proj)   find ${PWD} -name "*.[ch]" -o -name "*.[ch]pp" | grep -v ut/ | grep -v utils/ > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q -k && cd -
+	    cscope -b -q -k
+	    ;;
+    esac
 }
 function ksRusTerm
 {

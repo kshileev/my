@@ -32,8 +32,9 @@ map <C-b> :w<CR> :mak<CR>
 "map <F12> :%s/\s\+$//e
 "nmap <C-m> :! man <C-R>=expand("<cword>")<CR><CR>
 
-if filereadable(expand("/tmp/kirshil_cscope/cscope.out"))
-    cs add /tmp/${USER}_cscope/cscope.out
+let cscope_db=$MY_CSCOPE_DIR.'cscope.out'
+if filereadable(expand(cscope_db))
+    cs add cscope_db
     set cscopeverbose
     " search for this symbol
     nmap <F2> :cs find s <C-R>=expand("<cword>")<CR><CR>
