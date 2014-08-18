@@ -140,7 +140,11 @@ function ksNova()
 	    [ -z ${devstack_config} ] || source ${devstack_config}
         ;;
         status)
+	    echo Tenant: ${OS_TENANT_NAME} User: ${OS_USER_NAME}
             nova list
+	    neutron net-list
+	    neutron subnet-list
+	    neutron port-list
         ;;
         *) echo Command ${nova_command} is wrong, nothing to do ;;
     esac
