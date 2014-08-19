@@ -873,6 +873,7 @@ show info          rpm -qi name              dpkg -s name
 who owns the file  rpm -qf file              dpkg -S file
 show scripts       rpm -q --scripts name     cat /var/lib/dpkg/info name.xxx
 install package    rpm -ivh name             dpkg --force-architecture -i name
+verify package     rpm -V name               dpkg -V name
 key install        rpm --import key
 show key ring      rpm -qa gpg-pubkey*
 EOF
