@@ -245,12 +245,6 @@ function ksOsTerm
     gnome-terminal --hide-menubar --geometry=100x25+1000+500 --title="libcloud log" --command="tail -f $HOME/libcloud.log"
    #gnome-terminal --hide-menubar --geometry=100x25-1550+500 --title="JE 2" --command="ssh -Y root@je-cssn" &
 }
-function ksWaasGoBld
-{
-    WaasSocket
-    ssh -S ${WaasSocketFile} kshileev@localhost
-    #gnome-terminal --hide-menubar --window -e "ssh -p 11111 kshileev@localhost" --tab --tab
-}
 function WaasSocket
 {
     if [ ! -S ${WaasSocketFile} ]; then
@@ -373,24 +367,6 @@ function ksWaasDeployRuby
     sshpass -p default ssh admin@edge reload force
     echo "Executing CORE reload" && sshpass -p default ssh admin@core copy http install kshileev-lnx / ${RubyName}
     sshpass -p default ssh admin@core reload force
-}
-function ksWaasRunCifsBm
-{
-    local File Description Script
-    cd ~
-    if [ -z $1 ]; then
-	for File in `ls ~/*.bm`; do
-	    Description=`head -1 ${File}`
-	    echo ${File} ${Description}
-	done
-	read -p "Choose script: " Script
-	[ -z ${Script} ] && echo Script is not choosen && return
-    else
-	Script=$1
-    fi
-
-    cifs_bm -c ${Script} `grep % ${Script} | cut -b2-`
-    cd -
 }
 function ksHgRepo
 {
@@ -946,6 +922,15 @@ function ksRefOS
 cat <<EOF
 mysql --user=nova --password=nova nova
 select id,cidr,project_id  from networks;
+
+neutron net-list
+neutron net-create XXXX
+neutron net-delete XXXX
+neutron subnet-list
+neutron subnet-create net-46 10.100.0.0/16 --name=sub-4
+neutron subnet-create net-46 2003::/64 --name=sub-6 --ip-version=6
+
+nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859
 EOF
 }
 function ksRefVim
