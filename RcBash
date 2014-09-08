@@ -156,19 +156,47 @@ function ksDevstack()
     case ${devstack_command} in
     config)
             local conf_file_name=local.conf
-            echo '[[local|localrc]]'        > ${conf_file_name}
-            echo ADMIN_PASSWORD=password   >> ${conf_file_name}
-            echo MYSQL_PASSWORD=password   >> ${conf_file_name}
-            echo RABBIT_PASSWORD=password  >> ${conf_file_name}
-            echo SERVICE_PASSWORD=password >> ${conf_file_name}
-            echo SERVICE_TOKEN=tokentoken  >> ${conf_file_name}
-            echo TEMPEST_BRANCH=ipv6 >> ${conf_file_name}
-            echo MGMT_NET=6 >> ${conf_file_name}
-            echo IP_VERSION=6 >> ${conf_file_name}
-            echo IPV6_RA_MODE=slaac >> ${conf_file_name}
-            echo IPV6_ADDRESS_MODE=slaac >> ${conf_file_name}
+	    cat > ${conf_file_name} <<EOF
+[[local|localrc]]
+DEST=${HOME}/os
+TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
+TEMPEST_BRANCH=ipv6
 
-            echo ${conf_file_name} created
+MYSQL_PASSWORD=nova
+RABBIT_PASSWORD=nova
+SERVICE_TOKEN=nova
+SERVICE_PASSWORD=nova
+ADMIN_PASSWORD=nova
+
+ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-cond,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,rabbit
+enable_service mysql
+disable_service n-net
+enable_service q-svc
+enable_service q-agt
+enable_service q-l3
+enable_service q-dhcp
+enable_service q-meta
+enable_service q-lbaas
+enable_service neutron
+enable_service tempest
+
+NOVA_USE_NEUTRON_API=v2
+VOLUME_BACKING_FILE_SIZE=2052M
+API_RATE_LIMIT=False
+
+VERBOSE=True
+DEBUG=True
+
+LOGFILE=\$DEST/logs/stack.sh.log
+USE_SCREEN=True
+SCREEN_LOGDIR=\$DEST/logs
+
+IP_VERSION=4+6
+IPV6_PUBLIC_RANGE=2005::/64
+IPV6_PUBLIC_NETWORK_GATEWAY=2005::1
+REMOVE_PUBLIC_BRIDGE=False
+EOF
+                   echo ${conf_file_name} created
         ;;
     run)
 	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=${HOME}/current_tempest
