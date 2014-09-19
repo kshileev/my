@@ -428,6 +428,7 @@ function ksRepo
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
+	my) git clone git@github.com:kshileev/my.git ;;
 	*)  echo No repo choosen, nothing to do! ;;
     esac
 }
