@@ -161,6 +161,7 @@ function ksDevstack()
 DEST=${HOME}/os
 TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
 TEMPEST_BRANCH=ipv6
+RECLONE=True
 
 MYSQL_PASSWORD=nova
 RABBIT_PASSWORD=nova
@@ -897,7 +898,12 @@ sudo ip -6 a d  2005:1969::1/64 dev eth0
 sudo ip r a 10.0.15.0/28 via 10.30.1.180
 sudo ip r a 10.0.5.1 dev vlan105
 sudo ip r c default via 10.20.30.40 dev eth0
+
 sudo brctl addif br105 vlan105
+
+sudo ovs-vsvtl show
+sudo ovs-vsctl del-br <bridge_name>
+
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
 EOF
@@ -1061,7 +1067,10 @@ function ksJenkins
 }
 function ksShowProcess()
 {
-    ps auxw  | grep $1 | grep -v grep
+    local name=$1
+    local pid=$2
+    ps -C ${name} -o user,pid,ppid,cmd
+    [[ -n ${pid} ]] && ps -p ${pid} -o user,pid,ppid,cmd
 }
 
 ksAliasDefine
