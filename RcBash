@@ -906,12 +906,16 @@ sudo ovs-vsctl del-br <bridge_name>
 
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+
+sudo ettercap -C -i eth0                 # start listening with on eth0
+sudo tcpdump -vv -n -t -i eth0 -c 10     #
+sshpass -p default ssh admin@172.18.6.40 # go to node with password default
 EOF
 }
 function ksRefRe {
 cat <<EOF
-find $HOME -name *.c[]
-grep -E "foo|bar"
+find $HOME -name *.c[]           # find all files *.c and *.
+grep -E "foo|bar"                # find foo or grep
 EOF
 }
 function ksRef {
@@ -924,21 +928,21 @@ echo "savedefault --default=1 --once" |grub #say grub to reboot once
 echo kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst #reboot if panic
 syscall:	check include/asm/unistd.h for __NR_syscallname
 
-cscope: cscope -b -R #build reference file
-cscope -b -q -k
+cscope -b -R          # build reference file
+cscope -b -q -k       # used
 
-
+watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
 
 ps -L -p pid # shows all threads for process
 
 diff -pNU7 # p for function N
-russup@support.swsoft.com girl:click.bravo
 EOF
 }
 function ksRefBash() {
     cat <<EOF
 for _ in `some_cmd`; do echo _ ; done
 while true ; do echo 123 ; done # busy cycle
+[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0
 EOF
 }
 function ksRefPuppet {
