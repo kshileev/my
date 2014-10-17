@@ -106,7 +106,7 @@ function ksVirt()
 {
     ksVirtStatus
 
-    local virsh_command=$(ksGetInput 'kill-all new-vm')
+    local virsh_command=$(ksGetChoice 'kill-all new-vm')
     case ${virsh_command} in
         kill-all)
 	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
@@ -115,22 +115,45 @@ function ksVirt()
 	         virsh net-list -all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
 	       ;;
         new-vm) ksVirtVm ;;
-	     *)  echo Command ${virsh_command} is wrong, nothing to do! ;;
+    esac
+}
+function ksNet()
+{
+    local net_cmd=$(ksGetChoice 'del-nic del-netns')
+    echo ${net_cmd}
+    case ${net_cmd} in
+    del-nic)
+	ip a
+	local re=$(ksGetInput 'enter re' 'q.*')
+	for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
+	    echo Deleting ${interface}
+	    sudo ip l d ${interface}
+	done
+    ;;
     esac
 }
 function ksGetInput()
 {
+    local text=$1
+    local default=$2
+    local input
+    read -p "${text} [default=${default}]: " input
+    echo ${input:-${default}}
+}
+function ksGetChoice()
+{
     local commands=$1
     local command=$2
-    [ -n "${command}" ] && [[ "${commands}" == *${command}* ]] && echo ${command} && return
+    [[ -n ${command} ]] && [[ ${commands} == *${command}* ]] && echo ${command} && return
     local default_command=$(echo ${commands} | cut -d ' ' -f1)
     local input
-    read -p "Possible inputs: ${commands} [default=${default_command}]: " input
+    read -p "choose from ${commands} [default=${default_command}]: " input
+    [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
     echo ${input:-${default_command}}
 }
 function ksNova()
 {
-    local nova_command=${1:-$(ksGetInput 'config status')}
+    local nova_command=${1:-$(ksGetChoice 'config status')}
     case ${nova_command} in
         config)
             local devstack_config=$(find ~ -wholename '*/devstack/openrc')
@@ -147,12 +170,11 @@ function ksNova()
 	    neutron subnet-list
 	    neutron port-list
         ;;
-        *) echo Command ${nova_command} is wrong, nothing to do ;;
     esac
 }
 function ksDevstack()
 {
-    local devstack_command=$(ksGetInput 'config run result' $1)
+    local devstack_command=$(ksGetChoice 'config run result' $1)
     case ${devstack_command} in
     config)
             local conf_file_name=local.conf
@@ -205,7 +227,6 @@ EOF
     result)
             testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
         ;;
-    *) echo Command ${devstack_command} is wrong, nothing to do ;;
     esac
 }
 function ksInfo()
@@ -391,7 +412,7 @@ EOF
 }
 function ksRepo
 {
-    local repo=$(ksGetInput 'devstack tempest cisco-sqe buzzoola barracuda ovzctl ovzkernel')
+    local repo=$(ksGetChoice 'devstack tempest cisco-sqe buzzoola barracuda ovzctl ovzkernel')
     case ${repo} in
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
@@ -405,7 +426,6 @@ function ksRepo
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
 	my) git clone git@github.com:kshileev/my.git ;;
-	*)  echo No repo choosen, nothing to do! ;;
     esac
 }
 function ksInitrd
@@ -416,7 +436,7 @@ function ksInitrd
     # read -p gzip -dc | cpio -i > .
     #find . | cpio -co --quiet | gzip -c > ~/initrd.img'
     ls *initrd* /boot/initrd*
-    read -p "Choose initrd image: " IrdName ; [ -z "$IrdName" ] && exit
+    local IrdName=$(ksGetInput 'Choose initrd image:')
     rm -rf $HOME/ird
     mkdir -p $HOME/ird
     cp ${IrdName} $HOME/ird/tmp-initrd
@@ -431,7 +451,7 @@ function ksBootOnce
 }
 function ksCscopePrepare
 {
-    local what=$(ksGetInput 'devstack c-proj')
+    local what=$(ksGetChoice 'devstack c-proj')
     echo Preparing CSCOPE to browse in $PWD
     mkdir -p ${MY_CSCOPE_DIR}
     case ${what} in
@@ -556,13 +576,13 @@ EOF
 }
 function ksGenClass
 {
-	read -p "Class name [KirClass]: " Class; [ -z "$Class" ] && Class='KirClass'
-	read -p "Base class  [KirBase]: " Base ; [ -z "$Base" ] && Base='KirBase'
-	read -p "C++ extension   [.cc]: " Ext  ; [ -z "$Ext" ] && Ext='.cc'
-	File=${Class}${Ext}
-	Header=${Class}.h
+    local Class=$(ksGetInput 'Class name' 'KirClass')
+    local Base=$(ksGetInput 'Base name' 'KirBase')
+    local Ext=$(ksGetInput 'C++ extention' '.c++')
+    File=${Class}${Ext}
+    Header=${Class}.h
 
-	cat > ${Header} <<EOF
+    cat > ${Header} <<EOF
 #ifndef ${Class}_h"
 #define ${Class}_h"
 
@@ -605,7 +625,7 @@ function PingNode
 }
 function ksMyEnvDeploy()
 {
-    local my_env_command=$(ksGetInput 'local remote update' $1)
+    local my_env_command=$(ksGetChoice 'local remote update' $1)
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
@@ -614,17 +634,13 @@ function ksMyEnvDeploy()
 	;;
     remote)
 	grep -v ^127 /etc/hosts | grep ^[1-2]
-	local Node
-	read -p "Choose node where to deploy: " Node
+	local Node=$(ksGetInput 'Choose node where to deploy' 'NoNode')
 	echo "Deploing to ${Node}:"
 	scp -p ${MY_BASH_RC} ~/.bash_profile ${MY_VIM_RC} localadmin@${Node}:
 	;;
     update)
 	cd ${MY_DIR}
 	git pull
-	;;
-    *)
-	echo Command ${my_env_comand} is wrong, nothing to do
 	;;
     esac
 }
@@ -721,12 +737,13 @@ function PingNodeOrExit()
 function ksIntallKernel2Remote
 {
     grep "Linux kernel release" README >/dev/null 2>&1
-    [ $? -ne 0 ] && { echo You need to invoke this from head of kernel tree; return 1; }
+    [ $? -ne 0 ] && echo You need to invoke this from head of kernel tree && return 1
     echo Install new kernel
     ls configs/
-    read -p "to remote node               [tom]: " Node; [ -z "$Node" ] && Node="tom"  ; PingNodeOrExit ${Node}
-    read -p "with arch ( i386 x86_64 ) [x86_64]: " Arch; [ -z "$Arch" ] && Arch="x86_64"
-    read -p "config file              [.config]: " Conf;
+    local Node=$(ksGetInput 'remote node name' 'tom')
+    PingNodeOrExit ${Node}
+    local Arch=$(ksGetChoice 'x86_64 i386')
+    local Conf=$(ksGetChoice '.config')
     [ -z "$Conf" ] || cp configs/${Conf} .config
     make ARCH=${Arch} nonint_oldconfig   ; [ "$?" != "0" ] && return 1
     make ARCH=${Arch}                    ; [ "$?" != "0" ] && return 1
@@ -748,8 +765,8 @@ function ksOvzNewCt
   echo "OS templates, currently installed:"
   vzpkg list
   vzpkgls
-  read -p "How many CTs   [1]: " NumCt ; [ -z "$NumCt" ] && NumCt=1
-  read -p "Which OS template : " OsTmpl
+  local NumCt=$(ksGetInput 'How many CTs' '1')
+  local Ostmpl=$(ksGetInput 'Which OS template')
   [ "$NumCt" == "1" ] && names="241"
   [ "$NumCt" == "2" ] && names="241 242"
   [ "$NumCt" == "3" ] && names="241 242 243"
@@ -909,9 +926,10 @@ EOF
 }
 function ksRefBash() {
     cat <<EOF
-for _ in `some_cmd`; do echo _ ; done
+for _ in \`some_cmd\`; do echo _ ; done
 while true ; do echo 123 ; done # busy cycle
-[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0
+[[ -n \${tmp} ]] && echo OK   # execute if len(tmp) is not 0
+[[ 'aa bb' != *aa* ]] && echo ok
 EOF
 }
 function ksRefPuppet {
@@ -981,54 +999,52 @@ EOF
 }
 function ksSshKey
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(ksGetInput 'pair-ssh add-public add-private pair-cert fingerprint')}
+    local ssh_command=${1:-$(ksGetChoice 'pair-ssh add-public add-private pair-cert fingerprint')}
     local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
-	    add-public)
-	        mkdir -p ~/.ssh
-	        [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
-	        [ -z "$(grep "${kir_vaio_pub}" ~/.ssh/authorized_keys)" ] && echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
-	        echo "KirVaio public key is added"
-	    ;;
-	    add-private)
-            [ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
-            echo Currently loaded keys:
-            ssh-add -l
-            echo Currently available :
-            find $HOME -name *.pk
-            read -p 'Enter key: ' key
-            [ -f ${key} ] && ssh-add ${key}
-	    ;;
-	    pair-cert)
-            echo Operations with p12 and pem public-private pairs
-            ls ${HOME}/.ssh/*
-            read -p " Public  key: " Public  ; [ -z "$Public"  ] && return
-            read -p " Private key: " Private ; [ -z "$Private" ] && return
+    add-public)
+        mkdir -p ~/.ssh
+        [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
+        [ -z "$(grep "${kir_vaio_pub}" ~/.ssh/authorized_keys)" ] && echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
+        echo "KirVaio public key is added"
+    ;;
+    add-private)
+	[ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
+        echo Currently loaded keys:
+        ssh-add -l
+        echo Currently available :
+	local prv_keys=$(find $HOME -name *.pk)
+	local prv_key=$(ksGetChoice $(prv_keys))
+        [ -f ${prv_key} ] && ssh-add ${prv_key}
+	;;
+    pair-cert)
+	echo Operations with p12 and pem public-private pairs
+        ls ${HOME}/.ssh/*
+	local Public=$(ksGetInput 'Public  key'); [[ -z $Public ]] && return
+	local Private=$(ksGetInput 'Private  key'); [[ -z $Private ]] && return
 
-            local out1=$(openssl rsa -in ${Private} -noout -modulus)
-            local out2=$(openssl x509 -in ${Public} -noout -modulus)
-            echo ${Public} and ${Private}
-            [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
-        ;;
-	    pair-ssh)
-            echo Check that given files are indeed ssh private-public pair
-            local files=$(ls ${HOME}/.ssh/*)
-            local public=$(ksGetInput "$files")
-            local private=$(ksGetInput "$files")
-
-            local out1=$(ssh-keygen -yf ${private})
-            local out2=$(cat ${public})
-            echo ${public} and ${private}
-            [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
-        ;;
-        fingerprint)
-            ls ${HOME}/.ssh/*
-            local public
-            read -p " Which public key: " private  ; [ -z "${public}"  ] && return
-            ssh-keygen -yf ${private} > ${private}.pub
-            ssh-keygen -lf ${private}
-        ;;
-	    *)  echo Wrong command, nothing to do! ;;
+        local out1=$(openssl rsa -in ${Private} -noout -modulus)
+        local out2=$(openssl x509 -in ${Public} -noout -modulus)
+        echo ${Public} and ${Private}
+        [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
+    ;;
+        pair-ssh)
+        echo Check that given files are indeed ssh private-public pair
+        local files=$(ls ${HOME}/.ssh/*)
+        local public=$(ksGetChoice "$files")
+        local private=$(ksGetChoice "$files")
+        local out1=$(ssh-keygen -yf ${private})
+        local out2=$(cat ${public})
+        echo ${public} and ${private}
+        [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
+    ;;
+    fingerprint)
+        ls ${HOME}/.ssh/*
+	local public=$(ksGetInput 'Which public key')
+	[ -z "${public}"  ] && return
+	ssh-keygen -yf ${private} > ${private}.pub
+        ssh-keygen -lf ${private}
+    ;;
     esac
 }
 function ksJenkins
