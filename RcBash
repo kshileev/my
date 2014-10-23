@@ -896,6 +896,9 @@ net:  Fedora                                       Ubuntu
 sudo ettercap -C -i eth0                 # start listening with on eth0
 sudo tcpdump -vv -n -t -i eth0 -c 10     #
 sshpass -p default ssh admin@172.18.6.40 # go to node with password default
+
+
+tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # dhcp DISCOVER REQUEST INFORM
 EOF
 }
 function ksRefRe {
@@ -949,14 +952,24 @@ cat <<EOF
 mysql --user=nova --password=nova nova
 select id,cidr,project_id  from networks;
 
+nova keypair-add --pub-key ~/.ssh/id_rsa.pub vaio
+neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default
+neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default
+
 neutron net-list
-neutron net-create XXXX
-neutron net-delete XXXX
+neutron net-create net
+neutron net-delete net
 neutron subnet-list
-neutron subnet-create net-46 10.100.0.0/16 --name=sub-4
-neutron subnet-create net-46 2003::/64 --name=sub-6 --ip-version=6
+neutron subnet-create net 10.100.0.0/16 --name=sub4
+neutron subnet-create net 2003::/64 --name=sub6 --ip-version=6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac
+neutron subnet-create net 2003::/64 --name=sub6 --ip-version=6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful
+
+neutron router-create r6
+neutron router-gateway-set r6 public
+neutron router-interface-add r6 sub6
 
 nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859
+nova delete i1
 EOF
 }
 function ksRefVim
@@ -996,6 +1009,15 @@ includefile /etc/ntp/crypto/pw
 
 keys /etc/ntp/keys
 EOF
+}
+function ksTcpDump
+{
+    local tcpdump_command=${1:-$(ksGetChoice 'dhcp')}
+    case ${tcpdump_command} in
+    dhcp)
+	sudo tcpdump -i any -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'
+    ;;
+    esac
 }
 function ksSshKey
 { # manipulate with ssh keys
