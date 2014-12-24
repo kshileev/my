@@ -127,8 +127,14 @@ function ksNet()
 	ip a
 	local re=$(ksGetInput 'enter re' 'q.*')
 	for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
-	    echo Deleting ${interface}
+	    echo Deleting interface ${interface}...
 	    sudo ip l d ${interface}
+	done
+    ;;
+    del-netns)
+	for namespace in `ip net`; do
+	    echo Deleting namespace ${namespace}...
+	    sudo ip net d ${namespace}
 	done
     ;;
     esac
@@ -181,9 +187,9 @@ function ksDevstack()
             local conf_file_name=local.conf
 	    cat > ${conf_file_name} <<EOF
 [[local|localrc]]
-DEST=${HOME}/os
-DATA_DIR=${DEST}/data
-SERVICE_DIR=${DEST}/status
+DEST=\${HOME}/os
+DATA_DIR=\${DEST}/data
+SERVICE_DIR=\${DEST}/status
 GIT_BASE=https://git.openstack.org
 TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
 TEMPEST_BRANCH=ipv6
@@ -879,17 +885,22 @@ function ksRefNet {
 cat <<EOF
 route add -host 10.20.30.40 gw vas1
 
-sudo ip l a sniff type dummy                      add interfece sniff
+sudo ip l a <if-name> type dummy			#add interfece
 sudo ip l a link eth0 name eth0.2 type vlan id 2 loose_binding on
-sudo ip l s vlan105 up
-sudo ip l d br-int type dummy                     delete interface br-int
+sudo ip l s <if-name> up				#switch on interface
+sudo ip l d <if-name>					#delete interface
 sudo ip -6 a a 2005:1975::1/64 dev eth0
 sudo ip -6 a d  2005:1969::1/64 dev eth0
 sudo ip r a 10.0.15.0/28 via 10.30.1.180
 sudo ip r a 10.0.5.1 dev vlan105
 sudo ip r c default via 10.20.30.40 dev eth0
+sudo ip net d <namespace_name>				#delete namespace
 
 sudo brctl addif br105 vlan105
+
+sudo virsh net-list
+sudo virsh net-destroy net_name
+sudo virsh net-undefine net_name
 
 sudo ovs-vsvtl show
 sudo ovs-vsctl del-br <bridge_name>
