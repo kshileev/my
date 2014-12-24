@@ -98,6 +98,7 @@ function ksVirtVm()
 function ksVirtStatus()
 {
     echo Virtual machines: &&  virsh list --all
+    echo Virtual pools: && virsh pool-list --all
     echo Virtual networks: &&  virsh net-list --all
     echo Bridges: && brctl show
     ksPrintSeparator
@@ -181,6 +182,9 @@ function ksDevstack()
 	    cat > ${conf_file_name} <<EOF
 [[local|localrc]]
 DEST=${HOME}/os
+DATA_DIR=${DEST}/data
+SERVICE_DIR=${DEST}/status
+GIT_BASE=https://git.openstack.org
 TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
 TEMPEST_BRANCH=ipv6
 RECLONE=True
@@ -416,7 +420,7 @@ function ksRepo
     case ${repo} in
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
-	cisco-sqe) git clone https://github.com/CiscoSystems/openstack-sqe.git;;
+	cisco-sqe) git clone https://github.com/CiscoSystems/openstack-sqe.git sqe;;
 	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz
 		  cd $HOME/buzz
 		  git remote add up git@github.com:Buzzoola/buzzoola.git
