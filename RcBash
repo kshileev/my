@@ -1,9 +1,9 @@
-#!/bin/sh
+
 # Login interactive shell: /etc/bash then ~/.bash_profile
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
-PS1="\!:\W> "						#prompt: 22:dirname>
+PS1="\h:\W> "						#prompt: hostname:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_USER=kshileev
@@ -71,6 +71,14 @@ function ksPrintSeparator()
     printf "%0.s-" {1..80}
     echo
 }
+function ksPrintDevstackStatus()
+{
+    local log_file=`find ~/os /opt -name stack.sh.log 2>/dev/null`
+    grep -q "This is your host ip:" 2>/dev/null ${log_file} && ${setcolor_success} || ${setcolor_failure}
+    echo -n DS
+    ${setcolor_normal}
+    echo
+}
 function ksAddLineToFileIfNotThere()
 {
     local line=$1
@@ -113,7 +121,7 @@ function ksVirt()
 	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
 	         virsh list --all | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh undefine
 	         virsh net-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-destroy
-	         virsh net-list -all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
+	         virsh net-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
 	       ;;
         new-vm) ksVirtVm ;;
     esac
@@ -426,7 +434,7 @@ function ksRepo
     case ${repo} in
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
-	cisco-sqe) git clone https://github.com/CiscoSystems/openstack-sqe.git sqe;;
+	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
 	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz
 		  cd $HOME/buzz
 		  git remote add up git@github.com:Buzzoola/buzzoola.git
@@ -475,22 +483,22 @@ function ksCscopePrepare
 function ksAliasDefine()
 {
     echo Defines aliases
-    alias pt="patch -p1 -b -z .${MY_USER}"
-    alias di="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
-    alias fk="find . -name \"*.${MY_USER}\""
     alias a='alias'
     alias cdm="cd ${MY_DIR}"
     alias cdt="cd /opt/stack/tempest"
     alias df='df -h'
     alias dm='dmesg'
+    alias di="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
     alias du='du -h'
+    alias e='echo'
+    alias ee="vim ${MY_BASH_RC}"
+    alias fk="find . -name \"*.${MY_USER}\""
     alias gb='git branch'
     alias gc='git checkout -- .'
     alias gd='git diff'
     alias gl='git log'
     alias gr='git remote -v'
     alias gs='git status'
-    alias e='echo'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
     alias h='history'
     alias l='ls -F --color=tty'
@@ -502,11 +510,12 @@ function ksAliasDefine()
     alias m='less'
     alias p="pstree -h"
     alias pss='ksShowProcess'
+    alias pt="patch -p1 -b -z .${USER}"
     alias pw="ps uxwf"
     alias q='. ~/buzzoola/deploy/provision.sh'
     alias src=". ${MY_BASH_RC}"
-    alias ee="vim ${MY_BASH_RC}"
     alias sslt='ps auxw |grep ssh |grep -v grep'
+    alias s='ssh -o StrictHostKeyChecking=no'
     alias u='cd ..'
     alias v='ksVirtStatus'
 
@@ -521,6 +530,7 @@ function ksAliasDefine()
 #    alias   0gos='sshpass -p girl:click.bravo ssh -R 7777:localhost:22 russup@support.swsoft'
 #    alias   0gred='sshpass -p 1q2w3e ssh kir@red.dragon.gdc.mirantis.sar'
 #    alias   0gblu='sshpass -p 1q2w3e ssh kir@blue.dragon.gdc.mirantis.sar'
+    alias dsd='cd ~/devstack && git checkout 905275ec9f51614911fbb915f8bba9896b3ab684'
 }
 function ksKirGrep
 {
@@ -918,8 +928,8 @@ EOF
 }
 function ksRefRe {
 cat <<EOF
-find $HOME -name *.c[]           # find all files *.c and *.
-grep -E "foo|bar"                # find foo or grep
+find $HOME bar foe -name *.c[   # find all files *.c and *. in ~ bar and foe dirs
+grep -E "foo|bar"		# find foo or grep
 EOF
 }
 function ksRef {
