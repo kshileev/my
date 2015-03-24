@@ -122,6 +122,8 @@ function ksVirt()
 	         virsh list --all | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh undefine
 	         virsh net-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-destroy
 	         virsh net-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
+	         virsh pool-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-destroy
+	         virsh pool-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-undefine
 	       ;;
         new-vm) ksVirtVm ;;
     esac
@@ -493,10 +495,12 @@ function ksAliasDefine()
     alias e='echo'
     alias ee="vim ${MY_BASH_RC}"
     alias fk="find . -name \"*.${MY_USER}\""
-    alias gb='git branch'
+    alias gb='git branch -vv'
     alias gc='git checkout -- .'
     alias gd='git diff'
+    alias gf='git fetch'
     alias gl='git log'
+    alias gp='git pull'
     alias gr='git remote -v'
     alias gs='git status'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
