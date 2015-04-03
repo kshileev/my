@@ -191,7 +191,7 @@ function ksNova()
 }
 function ksDevstack()
 {
-    local devstack_command=$(ksGetChoice 'config run result' $1)
+    local devstack_command=$(ksGetChoice 'config run result cleanup' $1)
     case ${devstack_command} in
     config)
             local conf_file_name=local.conf
@@ -247,6 +247,9 @@ EOF
     result)
             testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
         ;;
+    cleanup)
+	sudo rm -rf /etc/keystone /usr/local/bin/keyston* /etc/nova /usr/local/bin/nova* /etc/neutron /usr/local/bin/neutron* /etc/glance /usr/local/bin/glance* /etc/cinder /usr/local/bin/cinder* /etc/heat
+	;;
     esac
 }
 function ksInfo()
@@ -254,6 +257,7 @@ function ksInfo()
     local cmd_name=$1
     local cmd_full_path=`which ${cmd_name}`
     file ${cmd_full_path}
+    dpkg -S ${cmd_full_path}
 }
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
@@ -429,6 +433,15 @@ EOF
     else
         echo Mercurial repo is already cloned to ${Dir}
     fi
+}
+function ksGo
+{
+    local dest=$(ksGetChoice 'TOR231 EvGen229 EvGen230')
+    case ${dest} in
+	TOR231) sshpass -p c3l12345 ssh openstack-read@172.29.172.140 ;;
+	EvGen229) sshpass -p ubuntu ssh localadmin@172.29.173.229 ;;
+	EvGen230) sshpass -p ubuntu ssh localadmin@172.29.173.230 ;;
+    esac
 }
 function ksRepo
 {
