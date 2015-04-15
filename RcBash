@@ -130,9 +130,14 @@ function ksVirt()
 }
 function ksNet()
 {
-    local net_cmd=$(ksGetChoice 'del-nic del-netns')
+    local net_cmd=$(ksGetChoice 'sh-kern del-nic del-netns')
     echo ${net_cmd}
     case ${net_cmd} in
+    sh-kern)
+	sudo sysctl -a | grep forwarding
+	echo
+	sudo sysctl -a | grep use_tempaddr
+	;;
     del-nic)
 	ip a
 	local re=$(ksGetInput 'enter re' 'q.*')
@@ -999,15 +1004,16 @@ neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction 
 neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default
 
 neutron net-list
-neutron net-create net
-neutron net-delete net
+neutron net-create ext46 --router:external --shared
+neutron net-delete ext46
 neutron subnet-list
-neutron subnet-create net 10.100.0.0/16 --name=sub4
-neutron subnet-create net 2003::/64 --name=sub6 --ip-version=6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac
-neutron subnet-create net 2003::/64 --name=sub6 --ip-version=6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful
+neutron subnet-create ext46 10.100.0.0/16 --name=sub4
+neutron subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac
+neutron subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless
+neutron subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful
 
-neutron router-create r6
-neutron router-gateway-set r6 public
+neutron router-create r46
+neutron router-gateway-set r46 ext46
 neutron router-interface-add r6 sub6
 
 nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859
@@ -1061,12 +1067,49 @@ function ksTcpDump
     ;;
     esac
 }
+function sk_deploy_key_pair()
+{ # Check that ssh private-public is indeed a pair and deploy them to the given server
+    local what_to_deploy=$1
+    local private=$2
+    local server=$3
+    local user=$4
+    local password=$5
+
+    if [[ ${what_to_deploy} == "-h" ]]; then
+	echo "Usage: $0 [public|private] priv_key_path host user password"
+	return
+    fi
+    [[ -z ${what_to_deploy} ]] && what_to_deploy=public
+    [[ -z ${private} ]] && private=${MY_DIR}/keys/kir_no_secret
+    [[ -z ${server} ]] && server=localhost
+    [[ -z ${user} ]] && user=localadmin
+    [[ -z ${password} ]] && password=ubuntu
+
+    local public=${private}.pub
+    local fingerprint=$(ssh-keygen -lf ${private})
+    local public_value=$(cat ${public})
+    local private_value=$(cat ${private})
+    local public_value_from_private=$(ssh-keygen -yf ${private})
+
+    if [[ ${public_value} = ${public_value_from_private}* ]]; then
+	echo "${public} -> ${fingerprint}"
+	case ${what_to_deploy} in
+	    private)
+		sshpass -p ${password} scp ${private} ${user}@${server}:~/.ssh/id_rsa
+	    ;&
+	    public)
+		sshpass -p ${password} ssh ${user}@${server} echo ${public_value} >> ~/.ssh/authorized_keys
+	    ;;
+	esac
+    else
+	echo "${private} and ${public} are not a match!"
+    fi
+}
 function ksSshKey
 { # manipulate with ssh keys
     local ssh_command=${1:-$(ksGetChoice 'pair-ssh add-public add-private pair-cert fingerprint')}
-    local kir_vaio_pub='ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAuJI7Lr5WyGvfMEZw3If2oQ057+6fgxBfjbpIaD4BCPcMbtp0fDMtMAXD/0byB5J2/cc2wa8rYj+bHe1+6fV6hhl5vad6WR171rBFBzTuYOVtGxXhfkrhQqBgPF3N6woUfL7IAM390J06qQ+KtOYgkXDAea/uGIvISNxIUMEGoajgP/dZ9xkOZMvBRK4G3yhl0gD+tC8Zne3TUTrXRRLZF2euFvc36ZDMPEX1TaNqtaSQNfDcVsO9Oq7chEL7+gStS2w9e91sEkimmaj2gYYnhWTIkcn9TwzH96EaA7/RPrp4tgAwKIOh39KD+WW/58pyIJ98FeGMrnKj547o8NkCWQ== kir@KIR-VAIO'
     case ${ssh_command} in
-    add-public)
+    add-public-local)
         mkdir -p ~/.ssh
         [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
         [ -z "$(grep "${kir_vaio_pub}" ~/.ssh/authorized_keys)" ] && echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
@@ -1083,7 +1126,7 @@ function ksSshKey
 	;;
     pair-cert)
 	echo Operations with p12 and pem public-private pairs
-        ls ${HOME}/.ssh/*
+        ls ${MY}/keys/* ${HOME}/.ssh/*
 	local Public=$(ksGetInput 'Public  key'); [[ -z $Public ]] && return
 	local Private=$(ksGetInput 'Private  key'); [[ -z $Private ]] && return
 
@@ -1092,22 +1135,11 @@ function ksSshKey
         echo ${Public} and ${Private}
         [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
     ;;
-        pair-ssh)
-        echo Check that given files are indeed ssh private-public pair
-        local files=$(ls ${HOME}/.ssh/*)
-        local public=$(ksGetChoice "$files")
-        local private=$(ksGetChoice "$files")
-        local out1=$(ssh-keygen -yf ${private})
-        local out2=$(cat ${public})
-        echo ${public} and ${private}
-        [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
-    ;;
     fingerprint)
-        ls ${HOME}/.ssh/*
-	local public=$(ksGetInput 'Which public key')
-	[ -z "${public}"  ] && return
-	ssh-keygen -yf ${private} > ${private}.pub
-        ssh-keygen -lf ${private}
+        ls ${HOME}/.ssh/* ${MY_DIR}/keys/*
+	local private=$(ksGetInput 'Which private key')
+	[ -z "${private}"  ] && return
+	sk_deploy_key_pair check ${private}
     ;;
     esac
 }
