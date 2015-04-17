@@ -128,15 +128,27 @@ function ksVirt()
         new-vm) ksVirtVm ;;
     esac
 }
+function ks_list_of_ifaces()
+{
+    echo $(ip l |grep UP | cut -f2 -d ':')
+}
 function ksNet()
 {
-    local net_cmd=$(ksGetChoice 'sh-kern del-nic del-netns')
+    local net_cmd=$(ksGetChoice 'sh-kern tcpdump del-nic del-netns')
     echo ${net_cmd}
     case ${net_cmd} in
     sh-kern)
-	sudo sysctl -a | grep forwarding
+	sudo sysctl -a | grep forward
+	echo
+	sudo sysctl -a |grep bridge
 	echo
 	sudo sysctl -a | grep use_tempaddr
+	;;
+    tcpdump)
+	ifaces=$(ks_list_of_ifaces)
+	iface=$(ksGetChoice "${ifaces}")
+	filter=$(ksGetChoice 'icmp6')
+	sudo tcpdump -n -i ${iface} ${filter} -vv
 	;;
     del-nic)
 	ip a
@@ -531,6 +543,7 @@ function ksAliasDefine()
     alias ls='ls --color=auto'
     alias m='less'
     alias p="pstree -h"
+    alias py="ipython"
     alias pss='ksShowProcess'
     alias pt="patch -p1 -b -z .${USER}"
     alias pw="ps uxwf"
@@ -946,6 +959,7 @@ sshpass -p default ssh admin@172.18.6.40 # go to node with password default
 
 
 tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # dhcp DISCOVER REQUEST INFORM
+sudo tcpdump -n -i br0 -vvv icmp6 # v6 neighbours solicitation and advertisiment
 EOF
 }
 function ksRefRe {
