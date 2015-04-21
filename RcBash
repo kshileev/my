@@ -147,8 +147,11 @@ function ksNet()
     tcpdump)
 	ifaces=$(ks_list_of_ifaces)
 	iface=$(ksGetChoice "${ifaces}")
-	filter=$(ksGetChoice 'icmp6')
-	sudo tcpdump -n -i ${iface} ${filter} -vv
+	filter=$(ksGetChoice 'icmp6 dns')
+	case ${filter} in
+	    dns) filter='port 53' ;;
+	esac
+	sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
 	;;
     del-nic)
 	ip a
