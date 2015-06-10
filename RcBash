@@ -1,4 +1,3 @@
-
 # Login interactive shell: /etc/bash then ~/.bash_profile
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
@@ -110,6 +109,9 @@ function ksVirtStatus()
     echo Virtual networks: &&  virsh net-list --all
     echo Bridges: && brctl show
     ksPrintSeparator
+    local server=$(virsh list | grep lab | awk '{print $2}')
+    alias v1="virsh console ${server}"
+    alias v2="virsh vncdisplay ${server}"
 }
 function ksVirt()
 {
@@ -456,17 +458,19 @@ EOF
 }
 function ksGo
 {
-    local dest=$(ksGetChoice 'TOR231 EvGen229 EvGen230')
+    local dest=$(ksGetChoice 'TOR231 EvGen229 EvGen230 232')
     case ${dest} in
 	TOR231) sshpass -p c3l12345 ssh openstack-read@172.29.172.140 ;;
 	EvGen229) sshpass -p ubuntu ssh localadmin@172.29.173.229 ;;
 	EvGen230) sshpass -p ubuntu ssh localadmin@172.29.173.230 ;;
+	232) sshpass -p ubuntu ssh localadmin@172.29.173.232 ;;
     esac
 }
 function ksRepo
 {
-    local repo=$(ksGetChoice 'devstack tempest cisco-sqe buzzoola barracuda ovzctl ovzkernel')
+    local repo=$(ksGetChoice 'rally devstack tempest cisco-sqe buzzoola barracuda ovzctl ovzkernel')
     case ${repo} in
+	rally) git clone https://git.openstack.org/openstack/rally;;
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
 	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
@@ -538,6 +542,7 @@ function ksAliasDefine()
     alias gs='git status'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
     alias h='history'
+    alias i='python setup.py install'
     alias l='ls -F --color=tty'
     alias l.='ls -dh .* --color=auto'
     alias ll='ls -Flih --color=auto'
@@ -937,12 +942,17 @@ sudo ip l a <if-name> type dummy			#add interfece
 sudo ip l a link eth0 name eth0.2 type vlan id 2 loose_binding on
 sudo ip l s <if-name> up				#switch on interface
 sudo ip l d <if-name>					#delete interface
-sudo ip -6 a a 2005:1975::1/64 dev eth0
-sudo ip -6 a d  2005:1969::1/64 dev eth0
+sudo ip l s <if-name> promisc on			#switch off promisc
+sudo ip l s <if-name> promisc off			#switch off promisc
+
+sudo ip -6 a a 2005:1975::1/64 dev eth0			#add v6 address to iface
+sudo ip -6 a d 2005:1969::1/64 dev eth0			#remove v6 address from iface
+
 sudo ip r a 10.0.15.0/28 via 10.30.1.180
 sudo ip r a 10.0.5.1 dev vlan105
-sudo ip r c default via 10.20.30.40 dev eth0
-sudo ip net d <namespace_name>				#delete namespace
+sudo ip r c default via 10.20.30.40 dev eth0		#change default route
+
+sudo ip net d <ns_name>					#delete namespace
 
 sudo brctl addif br105 vlan105
 
