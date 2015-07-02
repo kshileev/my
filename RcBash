@@ -523,6 +523,7 @@ function ksAliasDefine()
 {
     echo Defines aliases
     alias a='alias'
+    alias ar='. ~/VE/rally/bin/activate'
     alias cdm="cd ${MY_DIR}"
     alias cdt="cd /opt/stack/tempest"
     alias df='df -h'
@@ -1183,6 +1184,12 @@ function ksShowProcess()
     local pid=$2
     ps -C ${name} -o user,pid,ppid,cmd
     [[ -n ${pid} ]] && ps -p ${pid} -o user,pid,ppid,cmd
+}
+function ksVirtualEnv()
+{
+    ls ~/VE
+    local venv=$(ksGetInput 'Choose venv'); [[ -z $venv ]] && return
+    . ~/VE/${venv}/bin/activate
 }
 
 ksAliasDefine
