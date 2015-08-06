@@ -468,17 +468,13 @@ function ksGo
 }
 function ksRepo
 {
-    local repo=$(ksGetChoice 'rally devstack tempest cisco-sqe buzzoola barracuda ovzctl ovzkernel')
+    local repo=$(ksGetChoice 'rally devstack tempest cisco-sqe cisco-kloudbuster barracuda ovzctl ovzkernel')
     case ${repo} in
 	rally) git clone https://git.openstack.org/openstack/rally;;
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
 	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
-	buzzoola) git clone git@github.com:kshileev/buzzoola.git $HOME/buzz
-		  cd $HOME/buzz
-		  git remote add up git@github.com:Buzzoola/buzzoola.git
-		  ;;
-	Buzzoola) git clone git@github.com:Buzzoola/buzzoola.git ;;
+	cisco-kloudbuster) git clone https://github.com/stackforge/vmtp.git --branch kloudbuster kloud;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
@@ -1190,6 +1186,12 @@ function ksVirtualEnv()
     ls ~/VE
     local venv=$(ksGetInput 'Choose venv'); [[ -z $venv ]] && return
     . ~/VE/${venv}/bin/activate
+}
+function ksKloudBuster()
+{
+    ls ~
+    local cloud_rc=$(ksGetInput 'Choose cloud'); [[ -z $cloud_rc ]] && return
+    echo python kloudbuster.py --tested-rc ${cloud_rc} --tested-passwd_tested admin
 }
 
 ksAliasDefine
