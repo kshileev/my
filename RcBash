@@ -474,7 +474,7 @@ function ksRepo
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
 	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
-	cisco-kloudbuster) git clone https://github.com/stackforge/vmtp.git --branch kloudbuster kloud;;
+	cisco-kloudbuster) git clone https://github.com/openstack/kloudbuster.git kloud;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
@@ -1191,7 +1191,7 @@ function ksKloudBuster()
 {
     ls ~
     local cloud_rc=$(ksGetInput 'Choose cloud'); [[ -z $cloud_rc ]] && return
-    echo python kloudbuster.py --tested-rc ${cloud_rc} --tested-passwd_tested admin
+    python ~/os/kloud/kloudbuster/kloudbuster.py --tested-rc ${cloud_rc} --tested-passwd admin
 }
 
 ksAliasDefine
