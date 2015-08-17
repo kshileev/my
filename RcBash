@@ -468,13 +468,14 @@ function ksGo
 }
 function ksRepo
 {
-    local repo=$(ksGetChoice 'rally devstack tempest cisco-sqe cisco-kloudbuster barracuda ovzctl ovzkernel')
+    local repo=$(ksGetChoice 'rally devstack tempest cisco-networking cisco-sqe cisco-kloudbuster barracuda ovzctl ovzkernel')
     case ${repo} in
 	rally) git clone https://git.openstack.org/openstack/rally;;
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
 	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
 	cisco-kloudbuster) git clone https://github.com/openstack/kloudbuster.git kloud;;
+        cisco-networking) https://git.openstack.org/openstack/networking-cisco netcis;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
@@ -558,6 +559,7 @@ function ksAliasDefine()
     alias s='ssh -o StrictHostKeyChecking=no'
     alias u='cd ..'
     alias v='ksVirtStatus'
+    alias ve='ksVirtualEnv'
 
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
@@ -1191,7 +1193,10 @@ function ksKloudBuster()
 {
     ls ~
     local cloud_rc=$(ksGetInput 'Choose cloud'); [[ -z $cloud_rc ]] && return
-    python ~/os/kloud/kloudbuster/kloudbuster.py --tested-rc ${cloud_rc} --tested-passwd admin
+    cd ~/os/kloud/kloudbuster
+    python kloudbuster.py --tested-rc ~/${cloud_rc} --tested-passwd admin --json ~/kloud.json
+    python kb_gen_chart.py -c ~/kloud.html ~/kloud.json
+    rm -f ~/kloud.json
 }
 
 ksAliasDefine
