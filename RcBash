@@ -25,6 +25,7 @@ export DISTCC_HOSTS='1.1.1.1 2.2.2.2 3.3.3.3'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=${MY_DIR}/RcAstyle
 export LD_LIBRARY_PATH=$HOME
 export ROOTGUI=native
+export TZ='Europe/Moscow'
 [ -d $HOME/ElasticLoadBalancing ] && AWS_ELB_HOME=$HOME
 ColorNormal="\\033[0;39m"
 ColorBlack="\\033[0;30m";     ColorDarkGray="\\033[1;30m"
