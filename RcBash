@@ -457,14 +457,23 @@ EOF
         echo Mercurial repo is already cloned to ${Dir}
     fi
 }
-function ksGo
+function ksGoG10
 {
-    local dest=$(ksGetChoice 'TOR231 EvGen229 EvGen230 232')
+    local dest=$(ksGetChoice 'TOR N9K-1 N9K-2 FI qa11-cimc qa13-cimc qa14-cimc qa11 qa13 qa14')
     case ${dest} in
-	TOR231) sshpass -p c3l12345 ssh openstack-read@172.29.172.140 ;;
-	EvGen229) sshpass -p ubuntu ssh localadmin@172.29.173.229 ;;
-	EvGen230) sshpass -p ubuntu ssh localadmin@172.29.173.230 ;;
-	232) sshpass -p ubuntu ssh localadmin@172.29.173.232 ;;
+	TOR) sshpass -p C3l12345 ssh openstack-read@172.31.229.64 ;;
+	PXE) sshpass -p CTO1234! ssh openstack-read@172.20.231.57 ;;
+	cobbler) sshpass -p cisco123 ssh root@172.29.74.8 ;;
+	N9K-1) sshpass -p CTO1234! ssh admin@172.20.231.5 ;;
+	N9K-2) sshpass -p CTO1234! ssh admin@172.20.231.7 ;;
+	FI) sshpass -p cisco ssh admin@10.23.228.253 ;;
+	qa11-cimc) sshpass -p cisco ssh admin@10.23.228.231 ;;
+	qa12-cimc) sshpass -p cisco ssh admin@10.23.228.232 ;;
+	qa13-cimc) sshpass -p cisco ssh admin@10.23.228.233 ;;
+	qa14-cimc) sshpass -p cisco ssh admin@10.23.228.234 ;;
+	qa11) sshpass -p ubuntu ssh localadmin@172.29.172.168 ;;
+	qa13) sshpass -p ubuntu ssh localadmin@172.29.172.186 ;;
+	qa14) sshpass -p ubuntu ssh localadmin@172.29.172.187 ;;
     esac
 }
 function ksRepo
@@ -531,6 +540,7 @@ function ksAliasDefine()
     alias e='echo'
     alias ee="vim ${MY_BASH_RC}"
     alias fk="find . -name \"*.${MY_USER}\""
+    alias g10='ksGoG10'
     alias gb='git branch -vv'
     alias gc='git checkout -- .'
     alias gd='git diff'
