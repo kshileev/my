@@ -457,24 +457,42 @@ EOF
         echo Mercurial repo is already cloned to ${Dir}
     fi
 }
+function ksGoG8
+{
+    local host
+    local username
+    local password
+    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B qa11-cimc qa11')
+    case ${dest} in
+	TOR) host=172.31.229.204; username=openstack-read; password=CTO1234! ;;
+	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
+	FI-A) host=10.30.119.66; username=admin; password=CTO1234! ;;
+	FI-B) host=10.30.119.67; username=admin; password=CTO1234! ;;
+	qa1-cimc) host=10.23.228.231; username=admin; password=cisco ;;
+	qa1) host=172.31.229.172; username=root; password=cisco123 ;;
+	*) return;;
+    esac
+    ksSshTo ${host} ${username} ${password}
+}
 function ksGoG10
 {
-    local dest=$(ksGetChoice 'TOR N9K-1 N9K-2 FI qa11-cimc qa13-cimc qa14-cimc qa11 qa13 qa14')
+    local host
+    local username
+    local password
+    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B qa11-cimc qa11')
     case ${dest} in
-	TOR) sshpass -p C3l12345 ssh openstack-read@172.31.229.64 ;;
-	PXE) sshpass -p CTO1234! ssh openstack-read@172.20.231.57 ;;
-	cobbler) sshpass -p cisco123 ssh root@172.29.74.8 ;;
-	N9K-1) sshpass -p CTO1234! ssh admin@172.20.231.5 ;;
-	N9K-2) sshpass -p CTO1234! ssh admin@172.20.231.7 ;;
-	FI) sshpass -p cisco ssh admin@10.23.228.253 ;;
-	qa11-cimc) sshpass -p cisco ssh admin@10.23.228.231 ;;
-	qa12-cimc) sshpass -p cisco ssh admin@10.23.228.232 ;;
-	qa13-cimc) sshpass -p cisco ssh admin@10.23.228.233 ;;
-	qa14-cimc) sshpass -p cisco ssh admin@10.23.228.234 ;;
-	qa11) sshpass -p ubuntu ssh localadmin@172.29.172.168 ;;
-	qa13) sshpass -p ubuntu ssh localadmin@172.29.172.186 ;;
-	qa14) sshpass -p ubuntu ssh localadmin@172.29.172.187 ;;
+	TOR) host=172.31.229.64; username=openstack-read; password=C3l12345 ;;
+	PXE) host=172.20.231.57; username=openstack-read; password=CTO1234! ;;
+	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
+	N9K-1) host=172.20.231.5; username=admin; password=CTO1234! ;;
+	N9K-2) host=172.20.231.7; username=admin; password=CTO1234! ;;
+	FI-A) host=10.23.228.251; username=admin; password=cisco ;;
+	FI-B) host=10.23.228.252; username=admin; password=cisco ;;
+	qa11-cimc) host=10.23.228.231; username=admin; password=cisco ;;
+	qa11) host=172.29.172.168; username=root; password=cisco123 ;;
+	*) return;;
     esac
+    ksSshTo ${host} ${username} ${password}
 }
 function ksRepo
 {
@@ -540,6 +558,7 @@ function ksAliasDefine()
     alias e='echo'
     alias ee="vim ${MY_BASH_RC}"
     alias fk="find . -name \"*.${MY_USER}\""
+    alias g8='ksGoG8'
     alias g10='ksGoG10'
     alias gb='git branch -vv'
     alias gc='git checkout -- .'
@@ -1208,6 +1227,16 @@ function ksKloudBuster()
     python kloudbuster.py --tested-rc ~/${cloud_rc} --tested-passwd admin --json ~/kloud.json
     python kb_gen_chart.py -c ~/kloud.html ~/kloud.json
     rm -f ~/kloud.json
+}
+function ksSshTo()
+{
+    host=${1}
+    username=${2}
+    password=${3}
+
+    echo Ssh to ${username}@${host} with ${password}
+    sshpass -p ${password} ssh ${username}@${host}
+
 }
 
 ksAliasDefine
