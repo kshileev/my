@@ -462,14 +462,12 @@ function ksGoG8
     local host
     local username
     local password
-    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B qa11-cimc qa11')
+    local dest=$(ksGetChoice 'TOR TERM cobbler FI')
     case ${dest} in
 	TOR) host=172.31.229.204; username=openstack-read; password=CTO1234! ;;
 	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
-	FI-A) host=10.30.119.66; username=admin; password=CTO1234! ;;
-	FI-B) host=10.30.119.67; username=admin; password=CTO1234! ;;
-	qa1-cimc) host=10.23.228.231; username=admin; password=cisco ;;
-	qa1) host=172.31.229.172; username=root; password=cisco123 ;;
+	TERM) telnet 172.31.229.55; return ;;
+	FI) host=10.30.119.66; username=admin; password=cisco;;
 	*) return;;
     esac
     ksSshTo ${host} ${username} ${password}
@@ -479,18 +477,19 @@ function ksGoG10
     local host
     local username
     local password
-    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B qa11-cimc qa11')
+    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B cimc11 ipmi11 qa11')
     case ${dest} in
 	TOR) host=172.31.229.64; username=openstack-read; password=C3l12345 ;;
 	PXE) host=172.20.231.57; username=openstack-read; password=CTO1234! ;;
-	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
+	cobbler) host=172.29.74.8; username=root; password=cisco123 ;;
 	N9K-1) host=172.20.231.5; username=admin; password=CTO1234! ;;
 	N9K-2) host=172.20.231.7; username=admin; password=CTO1234! ;;
 	FI-A) host=10.23.228.251; username=admin; password=cisco ;;
 	FI-B) host=10.23.228.252; username=admin; password=cisco ;;
-	qa11-cimc) host=10.23.228.231; username=admin; password=cisco ;;
+	cimc11) host=10.23.228.231; username=admin; password=cisco ;;
+	ipmi11) ipmitool -I lanplus -H 172.31.228.231 -U admin -P cisco shell; return ;;
 	qa11) host=172.29.172.168; username=root; password=cisco123 ;;
-	*) return;;
+	*) echo Word mismatch, check line code; return;;
     esac
     ksSshTo ${host} ${username} ${password}
 }
@@ -1234,7 +1233,7 @@ function ksSshTo()
     username=${2}
     password=${3}
 
-    echo Ssh to ${username}@${host} with ${password}
+    echo ssh ${username}@${host} with ${password}
     sshpass -p ${password} ssh ${username}@${host}
 
 }
