@@ -7,6 +7,7 @@ PS1="\h:\W> "						#prompt: hostname:dirname>
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
+export MY_VENV_DIR=${HOME}/VE
 export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
 export MY_BASH_RC=${MY_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
@@ -462,11 +463,13 @@ function ksGoG8
     local host
     local username
     local password
-    local dest=$(ksGetChoice 'TOR TERM cobbler FI')
+    local dest=$(ksGetChoice 'TOR TERM cobbler N9K-1 N9K-2 FI')
     case ${dest} in
 	TOR) host=172.31.229.204; username=openstack-read; password=CTO1234! ;;
 	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
 	TERM) telnet 172.31.229.55; return ;;
+	N9K-1) host=172.31.229.207; username=admin; password=CTO1234!;;
+	N9K-2) host=172.31.230.234; username=admin; password=CTO1234!;;
 	FI) host=10.30.119.66; username=admin; password=cisco;;
 	*) return;;
     esac
@@ -477,18 +480,18 @@ function ksGoG10
     local host
     local username
     local password
-    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-1 N9K-2 FI-A FI-B cimc11 ipmi11 qa11')
+    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-2 N9K-3  FI FI-A FI-B ipmiDIRECTOR DIRECTOR')
     case ${dest} in
 	TOR) host=172.31.229.64; username=openstack-read; password=C3l12345 ;;
 	PXE) host=172.20.231.57; username=openstack-read; password=CTO1234! ;;
 	cobbler) host=172.29.74.8; username=root; password=cisco123 ;;
-	N9K-1) host=172.20.231.5; username=admin; password=CTO1234! ;;
-	N9K-2) host=172.20.231.7; username=admin; password=CTO1234! ;;
+	N9K-2) host=10.30.119.100; username=admin; password=CTO1234! ;;
+	N9K-3) host=10.30.119.101; username=admin; password=CTO1234! ;;
+	FI) host=10.23.228.253; username=admin; password=cisco ;;
 	FI-A) host=10.23.228.251; username=admin; password=cisco ;;
 	FI-B) host=10.23.228.252; username=admin; password=cisco ;;
-	cimc11) host=10.23.228.231; username=admin; password=cisco ;;
-	ipmi11) ipmitool -I lanplus -H 172.31.228.231 -U admin -P cisco shell; return ;;
-	qa11) host=172.29.172.168; username=root; password=cisco123 ;;
+	ipmiDIRECTOR) ipmitool -I lanplus -H 172.31.228.230 -U cobbler -P cobbler shell; return ;;
+	DIRECTOR) host=10.23.230.134; username=stack; password=cisco123 ;;
 	*) echo Word mismatch, check line code; return;;
     esac
     ksSshTo ${host} ${username} ${password}
@@ -588,7 +591,7 @@ function ksAliasDefine()
     alias s='ssh -o StrictHostKeyChecking=no'
     alias u='cd ..'
     alias v='ksVirtStatus'
-    alias ve='ksVirtualEnv'
+    alias ve='ksVENV'
 
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
@@ -1212,11 +1215,13 @@ function ksShowProcess()
     ps -C ${name} -o user,pid,ppid,cmd
     [[ -n ${pid} ]] && ps -p ${pid} -o user,pid,ppid,cmd
 }
-function ksVirtualEnv()
+function ksVENV()
 {
-    ls ~/VE
-    local venv=$(ksGetInput 'Choose venv'); [[ -z $venv ]] && return
-    . ~/VE/${venv}/bin/activate
+    ls ${MY_VENV_DIR}
+    local venv=$(basename $(pwd))
+    [ -d ${venv} ] || virtualenv ${MY_VENV_DIR}/${venv}
+    . ${MY_VENV_DIR}/${venv}/bin/activate
+    pip install -r requirements.txt
 }
 function ksKloudBuster()
 {
