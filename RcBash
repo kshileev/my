@@ -1219,7 +1219,7 @@ function ksVENV()
 {
     ls ${MY_VENV_DIR}
     local venv=$(basename $(pwd))
-    [ -d ${venv} ] || virtualenv ${MY_VENV_DIR}/${venv}
+    [ -d ${MY_VENV_DIR}/${venv} ] || virtualenv ${MY_VENV_DIR}/${venv}
     . ${MY_VENV_DIR}/${venv}/bin/activate
     pip install -r requirements.txt
 }
