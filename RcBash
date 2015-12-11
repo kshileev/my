@@ -1217,11 +1217,11 @@ function ksShowProcess()
 }
 function ksVENV()
 {
-    ls ${MY_VENV_DIR}
+    [ ! -d .git ] && echo "It's not a git repo!, aborting" && return
     local venv=$(basename $(pwd))
     [ -d ${MY_VENV_DIR}/${venv} ] || virtualenv ${MY_VENV_DIR}/${venv}
     . ${MY_VENV_DIR}/${venv}/bin/activate
-    pip install -r requirements.txt
+    [ -f requirements.txt ] && pip install -r requirements.txt
 }
 function ksKloudBuster()
 {
