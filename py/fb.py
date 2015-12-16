@@ -1,6 +1,15 @@
 # 'a' => 0
 # 'b' => 1
-# ...
+# 'c' => 2
+# 'd' => 3
+# 'e' => 4
+# 'f' => 5
+# 'g' => 6
+# 'h' => 7
+# 'i' => 8
+# 'j' => 9
+# 'k' => 10
+# 'l' => 11
 # 'z' => 25
 #                    / "aba" 0, 1, 0
 # "aba" => [0, 1, 0]
@@ -25,7 +34,7 @@ def ways(enc):
     first = enc[0]
 
     if len(enc) > 1:
-        second = enc[1] if len(enc) >1 else 0
+        second = enc[1] if len(enc) > 1 else 0
         combined = 10*first + second
         if first != 0 and combined < 26:
             n_comb += 1
