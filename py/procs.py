@@ -2,49 +2,32 @@ import time
 import log
 import decorators
 
+
 def fun(n):
     while n > 0:
         n -= 1
 
-def monitor():
-    logger = log.create_logger()
-    logger.info('start')
-    time.sleep(5)
-    logger.info('finish')
-
-
-def activity():
-    logger = log.create_logger()
-    logger.info('start')
-    time.sleep(6)
-    logger.info('finish')
-
-
-def disturbance():
-    logger = log.create_logger()
-    logger.info('start')
-    time.sleep(7)
-    logger.info('finish')
-
-
 @decorators.print_time
 def sequencial(function, args):
     map(function, args)
+
 
 @decorators.print_time
 def multi_processes(function, args):
     import multiprocessing
 
     p = multiprocessing.Pool(processes=len(args))
-    p.map(func=fun, iterable= args)
+    p.map(func=function, iterable=args)
+
 
 @decorators.print_time
 def multi_threads(function, args):
     import threading
 
-    threads =  [threading.Thread(target=function, args=(x, )) for x in args]
-    map(lambda x: x.start(), threads)
-    map(lambda x: x.join(), threads)
+    threads = [threading.Thread(target=function, args=(x, )) for x in args]
+    map(lambda thread: thread.start(), threads)
+    map(lambda thread: thread.join(), threads)
+
 
 @decorators.print_time
 def multi_forks(function, args):
@@ -53,10 +36,11 @@ def multi_forks(function, args):
     from log import create_logger
 
     pids = []
+
     def fork_new_process(value):
         try:
             pid = os.fork()
-        except:
+        except AttributeError:
             logger = create_logger()
             logger.error('Failed to fork subprocess')
         else:
