@@ -41,16 +41,16 @@ class TreeNode:
         start = start or 0
         end = end or len(values)
 
-        root = Node(values[start])
+        root = TreeNode(values[start])
         left_start = start + 1
         right_start = left_start
         while right_start < end and values[right_start] < root.value:
             right_start += 1
 
         if left_start < right_start:
-            root.left = Node.build_binary_from_list(values, left_start, right_start)
+            root.left = TreeNode.build_binary_from_list(values, left_start, right_start)
         if right_start < end:
-            root.right = Node.build_binary_from_list(values, right_start, end)
+            root.right = TreeNode.build_binary_from_list(values, right_start, end)
         return root
 
 
@@ -59,7 +59,6 @@ class Tree:
 
     def __init__(self):
         self.__nodes = {}
-
 
     def print(self, identifier, depth=ROOT):
         children = self[identifier].children
@@ -87,6 +86,6 @@ if __name__ == '__main__':
              \
               e
     """
-    tree = Node.build_binary_from_list(['a', 'b', 'c', 'd', 15, 12, 17, 19])
+    tree = TreeNode.build_binary_from_list(['a', 'b', 'c', 'd', 15, 12, 17, 19])
     values = tree.traverse()
-    print values
+    print(values)

@@ -12,7 +12,7 @@ def fib(n):
     tn2 = 0
     tn1 = 1
     tn = 1
-    for i in xrange(2, n+1):
+    for i in range(2, n+1):
         tn = tn1 + tn2
         tn2 = tn1
         tn1 = tn
@@ -41,7 +41,7 @@ def fib2(n):
     tn2 = 0
     tn1 = 1
     tn = 1
-    for i in xrange(2, n+1):
+    for i in range(2, n+1):
         tn = tn1 + tn2 * tn2
         tn2 = tn1
         tn1 = tn
@@ -55,13 +55,13 @@ class TestFibonacci(unittest.TestCase):
         self.values2 = [0, 1, 1, 2, 3, 7, 16, 65, 321]
 
     def test_fib(self):
-        for n in xrange(len(self.values)):
+        for n in range(len(self.values)):
             self.assertEqual(self.values[n], fib(n))
 
     def test_fib_recursive(self):
-        for n in xrange(len(self.values)):
+        for n in range(len(self.values)):
             self.assertEqual(self.values[n], fib_recursive(n))
 
     def test_fib2(self):
-        for n in xrange(len(self.values)):
+        for n in range(len(self.values)):
             self.assertEqual(self.values2[n], fib2(n))
