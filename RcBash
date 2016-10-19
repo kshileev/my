@@ -2,12 +2,12 @@
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
-PS1="\h:\W> "						#prompt: hostname:dirname>
+PS1="\h:\W> "					   	    #prompt: hostname:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
-export MY_VENV_DIR=${HOME}/VE
+export MY_VENV_DIR=${HOME}/venv
 export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
 export MY_BASH_RC=${MY_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
@@ -138,40 +138,6 @@ function ks_list_of_ifaces()
 }
 function ksNet()
 {
-    local net_cmd=$(ksGetChoice 'sh-kern tcpdump del-nic del-netns')
-    echo ${net_cmd}
-    case ${net_cmd} in
-    sh-kern)
-	sudo sysctl -a | grep forward
-	echo
-	sudo sysctl -a |grep bridge
-	echo
-	sudo sysctl -a | grep use_tempaddr
-	;;
-    tcpdump)
-	ifaces=$(ks_list_of_ifaces)
-	iface=$(ksGetChoice "${ifaces}")
-	filter=$(ksGetChoice 'icmp6 dns')
-	case ${filter} in
-	    dns) filter='port 53' ;;
-	esac
-	sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
-	;;
-    del-nic)
-	ip a
-	local re=$(ksGetInput 'enter re' 'q.*')
-	for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
-	    echo Deleting interface ${interface}...
-	    sudo ip l d ${interface}
-	done
-    ;;
-    del-netns)
-	for namespace in `ip net`; do
-	    echo Deleting namespace ${namespace}...
-	    sudo ip net d ${namespace}
-	done
-    ;;
-    esac
 }
 function ksGetInput()
 {
@@ -276,13 +242,15 @@ EOF
 	;;
     esac
 }
-function ksInfo()
-{   # shows usefull info about unknonw command provided as argument
+
+function kkinfo()
+{   # shows usefull info about unknown command provided as argument
     local cmd_name=$1
     local cmd_full_path=`which ${cmd_name}`
     file ${cmd_full_path}
     dpkg -S ${cmd_full_path}
 }
+
 WaasSocketFile="/tmp/WAAS"
 WaasTunelPort="11111"
 WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
@@ -298,23 +266,17 @@ function ksWaasGoTbPod9
     local EdgeIp=2.75.57.162
     local CoreIp=2.75.57.34
 
-    ssh -N -f -L ${ClientPort}:${ClientIp}:3389 kshileev@xe-kite.cisco.com
-    ssh -N -f -L ${ServerPort}:${ServerIp}:3389 kshileev@xe-kite.cisco.com
+    ssh -2NfL ${ClientPort}:${ClientIp}:3389 kshileev@xe-kite.cisco.com
+    ssh -2NfL ${ServerPort}:${ServerIp}:3389 kshileev@xe-kite.cisco.com
     rdesktop -u Administrator -p watchThis  -T WinServer -g 1024x768 localhost:${ClientPort}  &
     rdesktop -u Administrator -p watchThis  -T WinClient -g 1024x768 localhost:${ServerPort}  &
 
 
-    xterm -geometry 140x36+1600+10 -bg steelblue -fg black \
-        -title "EDGE conf log disk pri not" \
-        -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 140x36+1600+10 -bg steelblue -fg black -title "EDGE conf log disk pri not" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
 
-    xterm -geometry 140x36-900-10  -bg lightblue -fg black \
-        -title "EDGE-DBG sh conn stat" \
-        -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 140x36-900-10  -bg lightblue -fg black -title "EDGE-DBG sh conn stat" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
 
-    xterm -geometry 130x36-5+10 -bg lightyellow   -fg black \
-        -title "CORE (no) acc smb ena" \
-        -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
+    xterm -geometry 130x36-5+10 -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
 
     xterm -geometry 130x36-5-10 -bg black         -fg white -title LOCAL &
 }
@@ -322,13 +284,10 @@ function WaasSocket
 {
     if [ ! -S ${WaasSocketFile} ]; then
 	echo "Creating file_socket to Cisco BLD server..."
-	ssh -f -N -L ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
-	ssh -f -N -p ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
+	ssh -2NfL ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
+	ssh -2Nfp ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
     fi
 }
-
-WaasExcludeList="--exclude=CiscoInclude --exclude=ExternalMock.cpp --exclude=utils --exclude=.CC --exclude=.ACME --exclude=.#* --exclude=*.da --exclude=*.bb* --exclude=.hg* --exclude=.*project --exclude=Ut --exclude=Dbg --exclude=Lib --exclude=mock --exclude=gui --exclude=uml --exclude=.settings --exclude=Makefile* --exclude=Doxy-* --exclude=*.bm"
-
 function ksWaasSyncDown
 {
     if [ -d src -a -d ut -a -d include ]; then
@@ -496,7 +455,7 @@ function ksGoG10
     esac
     ksSshTo ${host} ${username} ${password}
 }
-function ksRepo
+function kkrepo
 {
     local repo=$(ksGetChoice 'rally devstack tempest cisco-networking cisco-sqe cisco-kloudbuster barracuda ovzctl ovzkernel')
     case ${repo} in
@@ -505,7 +464,7 @@ function ksRepo
 	tempest) git clone https://github.com/openstack/tempest.git;;
 	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
 	cisco-kloudbuster) git clone https://github.com/openstack/kloudbuster.git kloud;;
-        cisco-networking) https://git.openstack.org/openstack/networking-cisco netcis;;
+    cisco-networking) https://git.openstack.org/openstack/networking-cisco netcis;;
 	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
 	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
@@ -563,7 +522,7 @@ function ksAliasDefine()
     alias g8='ksGoG8'
     alias g10='ksGoG10'
     alias gb='git branch -vv'
-    alias gc='git checkout -- .'
+    alias gc='git checkout -- . && git clean -f'
     alias gd='git diff'
     alias gf='git fetch'
     alias gl='git log'
@@ -854,6 +813,7 @@ function ksIntallKernel2Remote
     Tarball=$HOME/tst-kernel-${Release}.tgz
     cd ${Dir} ; tar czf ${Tarball} * ;  scp ${Tarball} root@${Node}:/ ;  rm -rf ${Dir} ${Tarball}
 }
+
 function ksOvzNewCt
 {
   echo "OS templates, currently installed:"
@@ -893,8 +853,10 @@ function ksRefRus {
 ?1234567890-=\ /
 EOF
 }
-function ksRefMorze {
-    cat <<EOF
+
+function kkmorze()
+{
+cat <<EOF
 01 Aa ._   alfa     А   01 А .-    ай-даа            A          alpha
 02 Bb -... bravo    Б   02 Б -...  баа-ки-те-кут     B          beta
 03 Cc -.-. charlie  Ц   03 В  .--  ви-даа-лаа        W          gamma
@@ -930,7 +892,8 @@ function ksRefMorze {
                         33 Я  .-.- я-маал-я-маал
 EOF
 }
-function ksRefHex
+
+function kkhex
 {
     cat <<EOF
  hex table:
@@ -952,7 +915,8 @@ function ksRefHex
 15 0xf 1111
 EOF
 }
-function ksRefRpm {
+
+function kkrpm {
    cat <<EOF
 list all packages  rpm -qa                   dpkg -l
 list files         rpm -ql name              dpkg -L name
@@ -965,25 +929,25 @@ key install        rpm --import key
 show key ring      rpm -qa gpg-pubkey*
 EOF
 }
-function ksRefNet {
+
+function kknet()
+{
 cat <<EOF
-route add -host 10.20.30.40 gw vas1
 
-sudo ip l a <if-name> type dummy			#add interfece
-sudo ip l a link eth0 name eth0.2 type vlan id 2 loose_binding on
-sudo ip l s <if-name> up				#switch on interface
-sudo ip l d <if-name>					#delete interface
-sudo ip l s <if-name> promisc on			#switch off promisc
-sudo ip l s <if-name> promisc off			#switch off promisc
+sudo ip l a <name> type dummy		                             	# how to ip add interface
+sudo ip l a link eth0 name <name> type vlan id 2 loose_binding on   # how to ip add vlan interface on eth0
+sudo ip l s <name> up			                                 	# how to ip up interface
+sudo ip l d <name>					                                # how to ip delete interface
+sudo ip l s <name> promisc on			                            # how to ip promisc
+sudo ip l s <name> promisc off
+sudo ip -6 a a 2005:1975::1/64 dev eth0	                    		# how to ip add ipv6
+sudo ip -6 a d 2005:1969::1/64 dev eth0			                    # how to ip remove ipv6
 
-sudo ip -6 a a 2005:1975::1/64 dev eth0			#add v6 address to iface
-sudo ip -6 a d 2005:1969::1/64 dev eth0			#remove v6 address from iface
+sudo ip r a 10.0.15.0/28 via 10.30.1.180                            # how to ip add route via ip
+sudo ip r a 10.0.5.1 dev vlan105                                    # how to ip add route to interface
+sudo ip r c default via 10.20.30.40 dev eth0		                # how to ip change default route
 
-sudo ip r a 10.0.15.0/28 via 10.30.1.180
-sudo ip r a 10.0.5.1 dev vlan105
-sudo ip r c default via 10.20.30.40 dev eth0		#change default route
-
-sudo ip net d <ns_name>					#delete namespace
+sudo ip net d <ns_name>				                            	# how to ip delete namespace
 
 sudo brctl addif br105 vlan105
 
@@ -991,29 +955,74 @@ sudo virsh net-list
 sudo virsh net-destroy net_name
 sudo virsh net-undefine net_name
 
-sudo ovs-vsvtl show
-sudo ovs-vsctl del-br <bridge_name>
+
+sudo ovs-vsvtl show                                    # how to ovs show
+sudo ovs-vsctl add-br <name> && ip l s dev <name> up   # how to ovs add bridge
+sudo ovs-vsctl del-br <name>                           # how to ovs delete bridge
 
 net:  Fedora                                       Ubuntu
       /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
 
 sudo ettercap -C -i eth0                 # start listening with on eth0
 sudo tcpdump -vv -n -t -i eth0 -c 10     #
-sshpass -p default ssh admin@172.18.6.40 # go to node with password default
 
 
-tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # dhcp DISCOVER REQUEST INFORM
-sudo tcpdump -n -i br0 -vvv icmp6 # v6 neighbours solicitation and advertisiment
+sshpass -p default ssh admin@172.18.6.40                                   # how to sshpass
+ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no user@ip    # how to ssh without new host questions
+
+tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # how to tcpdump dhcp DISCOVER REQUEST INFORM
+sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 neighbours solicitation and advertisiment
+
+
+ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
 EOF
+
+    local net_cmd=$(ksGetChoice 'sh-kern tcpdump del-nic del-netns')
+    echo ${net_cmd}
+    case ${net_cmd} in
+    sh-kern)
+	sudo sysctl -a | grep forward
+	echo
+	sudo sysctl -a |grep bridge
+	echo
+	sudo sysctl -a | grep use_tempaddr
+	;;
+    tcpdump)
+	ifaces=$(ks_list_of_ifaces)
+	iface=$(ksGetChoice "${ifaces}")
+	filter=$(ksGetChoice 'icmp6 dns')
+	case ${filter} in
+	    dns) filter='port 53' ;;
+	esac
+	sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
+	;;
+    del-nic)
+	ip a
+	local re=$(ksGetInput 'enter re' 'q.*')
+	for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
+	    echo Deleting interface ${interface}...
+	    sudo ip l d ${interface}
+	done
+    ;;
+    del-netns)
+	for namespace in `ip net`; do
+	    echo Deleting namespace ${namespace}...
+	    sudo ip net d ${namespace}
+	done
+    ;;
+    esac
 }
-function ksRefRe {
+
+function kkgrep()
+{
 cat <<EOF
-find $HOME bar foe -name *.c[   # find all files *.c and *. in ~ bar and foe dirs
-grep -E "foo|bar"		# find foo or grep
+find bar foe -name *.c[           # how to find all *.c and *. in ~ bar and foe dirs
+grep -A 2 -B 3 -E "foo|bar"		  # how to grep foo and bar and print 2 lines before and 3 lines after
 EOF
 }
-function ksRef {
-   cat <<EOF
+
+function kkref() {
+cat <<EOF
 mount -o rw,remount /dev/sda1
 echo CONFIG_DEBUG_IN=y > .config ; make oldconfig #build with debug
 make -j32 CC=distcc ARCH=x86_64                   #build with DISTCC
@@ -1032,7 +1041,8 @@ ps -L -p pid # shows all threads for process
 diff -pNU7 # p for function N
 EOF
 }
-function ksRefBash() {
+
+function kkbash() {
     cat <<EOF
 for _ in \`some_cmd\`; do echo _ ; done
 while true ; do echo 123 ; done # busy cycle
@@ -1040,7 +1050,9 @@ while true ; do echo 123 ; done # busy cycle
 [[ 'aa bb' != *aa* ]] && echo ok
 EOF
 }
-function ksRefPuppet {
+
+function ksRefPuppet ()
+{
    cat <<EOF
 git clone https://github.com/CiscoSystems/puppet_openstack_builder
 cd puppet_openstack_builder
@@ -1051,7 +1063,8 @@ bash setup.sh
 puppet aggent -td --server=build-server.domain.name --pluginsync
 EOF
 }
-function ksRefOS
+
+function kkos()
 {
 cat <<EOF
 mysql --user=nova --password=nova nova
@@ -1078,15 +1091,18 @@ nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-i
 nova delete i1
 EOF
 }
-function ksRefVim
+
+function kkvim
 {
-  cat << EOF
-vim "+e ++enc=utf8" #run vim with russian support (cp1251 utf8  koi8r cp866)
-open file under cursor:\t gf <C-w>f <C-w>gf in new tab
-go forth and back:\t <C-]> <C-T> <C-O>
-substitute:\t :%s/pattert/string/cg
+cat << EOF
+vim "+e ++enc=utf8"   # how to vim with russian support (cp1251 utf8  koi8r cp866)
+gf <C-w>f <C-w>gf     # how to vim open file under cursor
+<C-]> <C-T> <C-O>     # how to vim go forth and back
+:%s/pattert/string/cg # how to vim substitute
 EOF
 }
+
+
 function ksTailLogAfs
 {
     cd /var/log
@@ -1208,14 +1224,14 @@ function ksJenkins
     sudo apt-get update
     sudo apt-get install jenkins
 }
-function ksShowProcess()
+function kkps()
 {
     local name=$1
     local pid=$2
     ps -C ${name} -o user,pid,ppid,cmd
     [[ -n ${pid} ]] && ps -p ${pid} -o user,pid,ppid,cmd
 }
-function ksVENV()
+function kkvenv()
 {
     [ ! -d .git ] && echo "It's not a git repo!, aborting" && return
     local venv=$(basename $(pwd))
@@ -1242,7 +1258,7 @@ function ksSshTo()
     sshpass -p ${password} ssh ${username}@${host}
 
 }
-function ksLogFilter()
+function kklog()
 {
     local log_file=$1
     local log_regex=$2
