@@ -136,9 +136,7 @@ function ks_list_of_ifaces()
 {
     echo $(ip l |grep UP | cut -f2 -d ':')
 }
-function ksNet()
-{
-}
+
 function ksGetInput()
 {
     local text=$1
@@ -457,17 +455,17 @@ function ksGoG10
 }
 function kkrepo
 {
-    local repo=$(ksGetChoice 'rally devstack tempest cisco-networking cisco-sqe cisco-kloudbuster barracuda ovzctl ovzkernel')
+    local repo=$(ksGetChoice 'os-sqe rally devstack tempest cisco-networking cisco-kloudbuster barracuda ovzctl ovzkernel')
     case ${repo} in
 	rally) git clone https://git.openstack.org/openstack/rally;;
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
 	tempest) git clone https://github.com/openstack/tempest.git;;
-	cisco-sqe) git clone https://github.com/cisco-openstack/openstack-sqe.git sqe;;
-	cisco-kloudbuster) git clone https://github.com/openstack/kloudbuster.git kloud;;
+	os-sqe) git clone https://github.com/CiscoSystems/os-sqe.git sqe;;
+	cisco-nvfbench) git clone http://gitlab.cisco.com/openstack-perf/nfvbench.git;;
+	cisco-kloudbuster) https://github.com/openstack/kloudbuster.git kloud;;
     cisco-networking) https://git.openstack.org/openstack/networking-cisco netcis;;
-	barracuda) git clone git@github.com:kshileev/barracuda.git $HOME/barr ;;
 	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
-	ovzkernel) git clone git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
+	ovzkernel) git clone  git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
 	my) git clone git@github.com:kshileev/my.git ;;
     esac
 }

@@ -5,10 +5,8 @@ class JsonFormatter(logging.Formatter):
     def __init__(self):
         import os
 
-        self._repo_tag = os.system('git describe --always')
         self._jenkins_tag = os.getenv('BUILD_TAG', 'no_jenkins')
         self._deployer_tag = 'not implemented'
-
         super(JsonFormatter, self).__init__()
 
     def format(self, record):
@@ -38,7 +36,6 @@ class JsonFormatter(logging.Formatter):
         if '@timestamp' not in d:
             d['@timestamp'] = self.formatTime(record=record, datefmt="%Y-%m-%dT%H:%M:%S.000Z")
         d['name'] = record.name
-        d['sqe-repo-tag'] = self._repo_tag
         d['deployer-info'] = self._deployer_tag
         d['jenkins'] = self._jenkins_tag
         return json.dumps(d)
@@ -49,15 +46,11 @@ class JsonFilter(logging.Filter):
         return record.exc_text or '=' in record.message
 
 
-class Logger(object):
-    def __init__(self, name=None):
-        self._create_logger(name)
-
-    def _create_logger(self, name):
+class MyLogger(logging.Logger):
+    def __init__(self, name):
         import inspect
-        import os
 
-        os.system('rm *.log')
+        super(MyLogger, self).__init__(name=name)
         text_log_name, json_log_name = 'text.log', 'json.log'
         formatter = logging.Formatter(fmt='[%(asctime)s %(levelname)s] %(name)s:  %(message)s')
 
@@ -75,26 +68,18 @@ class Logger(object):
         json_handler.addFilter(JsonFilter())
 
         stack = inspect.stack()
-        logger = logging.getLogger(name or stack[1][3])
-        logger.setLevel(level=logging.DEBUG)
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
-        logger.addHandler(json_handler)
+        self._logger = logging.getLogger(name or stack[1][3])
+        self._logger.setLevel(level=logging.DEBUG)
+        self._logger.addHandler(file_handler)
+        self._logger.addHandler(console_handler)
+        self._logger.addHandler(json_handler)
 
         logging.captureWarnings(True)
-        self._logger = logger
-
-    def info(self, *args):
-        self._logger.info(*args)
-
-    def warning(self, *args):
-        self._logger.warning(*args)
-
-    def exception(self, *args):
-        self._logger.exception(*args)
 
 
-lab_logger = Logger()
+logger = MyLogger('name')
 
 if __name__ == '__main__':
-    lab_logger.info('log message')
+    logger.debug('message=debug')
+    logger.info('message=info')
+    logger.error('message = error')
