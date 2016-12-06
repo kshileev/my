@@ -13,11 +13,13 @@ class MSK(tzinfo):
         return "MSK"
 
 
-def function(x):
-    if x == 0:
-        return 0
+def seconds_between(sec):
+    import time
+    import math
 
-    return function(x / 10) + x % 10
+    start = time.time()
+    time.sleep(sec)
+    return math.ceil(time.time() - start)
 
 
 def convert_12to24(time12):
@@ -42,3 +44,13 @@ class TestTime(TestCase):
             time12 = t.strftime('%I:%M:%S%p')
             time24 = t.strftime('%H:%M:%S')
             self.assertEqual(time24, convert_12to24(time12))
+
+    def test_strptime(self):
+        from datetime import datetime
+
+        with self.assertRaises(ValueError):  # bug in time zone
+            datetime.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
+            datetime.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
+
+    def test_seconds_between(self):
+        self.assertEqual(2, seconds_between(1))
