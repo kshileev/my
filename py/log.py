@@ -1,4 +1,5 @@
 import logging
+from unittest import TestCase
 
 
 class JsonFormatter(logging.Formatter):
@@ -48,11 +49,9 @@ class JsonFilter(logging.Filter):
 
 class MyLogger(logging.Logger):
     def __init__(self, name):
-        import inspect
-
-        super(MyLogger, self).__init__(name=name)
+        super(MyLogger, self).__init__(name)
         text_log_name, json_log_name = 'text.log', 'json.log'
-        formatter = logging.Formatter(fmt='[%(asctime)s %(levelname)s] %(name)s:  %(message)s')
+        formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s [%(name)s]  %(message)s')
 
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.DEBUG)
@@ -67,19 +66,26 @@ class MyLogger(logging.Logger):
         json_handler.setFormatter(JsonFormatter())
         json_handler.addFilter(JsonFilter())
 
-        stack = inspect.stack()
-        self._logger = logging.getLogger(name or stack[1][3])
-        self._logger.setLevel(level=logging.DEBUG)
-        self._logger.addHandler(file_handler)
-        self._logger.addHandler(console_handler)
-        self._logger.addHandler(json_handler)
+        self.setLevel(level=logging.DEBUG)
+        self.addHandler(file_handler)
+        self.addHandler(console_handler)
+        self.addHandler(json_handler)
 
         logging.captureWarnings(True)
 
 
-logger = MyLogger('name')
+logger = MyLogger(__file__)
 
-if __name__ == '__main__':
-    logger.debug('message=debug')
-    logger.info('message=info')
-    logger.error('message = error')
+
+class TestLog(TestCase):
+    def setUp(self):
+        super(TestLog, self).setUp()
+
+    def test_log(self):
+        logger.info('message')
+        logger.debug('message')
+        logger.error('message')
+        try:
+            raise Exception('artificial exception')
+        except Exception as ex:
+            logger.exception(ex)
