@@ -67,10 +67,9 @@ function _enok()
 	${setcolor_normal}
 	echo
 }
-function ksPrintSeparator()
+function _section()
 {
-    printf "%0.s-" {1..80}
-    echo
+    printf "\n%0100s\n" $1
 }
 function ksPrintDevstackStatus()
 {
@@ -104,20 +103,16 @@ function ksVirtVm()
         --cdrom ${vm_iso_path} \
         --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}
 }
-function ksVirtStatus()
+function kkvirsh()
 {
     echo Virtual machines: &&  virsh list --all
     echo Virtual pools: && virsh pool-list --all
     echo Virtual networks: &&  virsh net-list --all
     echo Bridges: && brctl show
-    ksPrintSeparator
+    _section
     local server=$(virsh list | grep lab | awk '{print $2}')
     alias v1="virsh console ${server}"
     alias v2="virsh vncdisplay ${server}"
-}
-function ksVirt()
-{
-    ksVirtStatus
 
     local virsh_command=$(ksGetChoice 'kill-all new-vm')
     case ${virsh_command} in
@@ -156,9 +151,9 @@ function ksGetChoice()
     [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
     echo ${input:-${default_command}}
 }
-function ksNova()
+function kkos()
 {
-    local nova_command=${1:-$(ksGetChoice 'config status')}
+    local nova_command=${1:-$(ksGetChoice 'help config status')}
     case ${nova_command} in
         config)
             local devstack_config=$(find ~ -wholename '*/devstack/openrc')
@@ -175,9 +170,33 @@ function ksNova()
 	    neutron subnet-list
 	    neutron port-list
         ;;
-    esac
+        help)
+            echo 'mysql --user=nova --password=nova nova'
+            echo 'select id,cidr,project_id  from networks;'
+
+            echo 'nova keypair-add --pub-key ~/.ssh/id_rsa.pub vaio'
+            echo 'neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default'
+            echo 'neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default'
+
+            echo 'neutron net-list'
+            echo 'neutron net-create ext46 --router:external --shared'
+            neutron 'net-delete ext46'
+            neutron 'subnet-list'
+            neutron 'subnet-create ext46 10.100.0.0/16 --name=sub4'
+            neutron 'subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac'
+            neutron 'subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless'
+            neutron 'subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful'
+
+            neutron 'router-create r46'
+            neutron 'router-gateway-set r46 ext46'
+            neutron 'router-interface-add r6 sub6'
+
+            nova 'boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859'
+            nova 'delete i1'
+        ;;
+        esac
 }
-function ksDevstack()
+function kkdevstack()
 {
     local devstack_command=$(ksGetChoice 'config run result cleanup' $1)
     case ${devstack_command} in
@@ -414,44 +433,6 @@ EOF
     else
         echo Mercurial repo is already cloned to ${Dir}
     fi
-}
-function ksGoG8
-{
-    local host
-    local username
-    local password
-    local dest=$(ksGetChoice 'TOR TERM cobbler N9K-1 N9K-2 FI')
-    case ${dest} in
-	TOR) host=172.31.229.204; username=openstack-read; password=CTO1234! ;;
-	coobler) host=172.29.74.8; username=root; password=cisco123 ;;
-	TERM) telnet 172.31.229.55; return ;;
-	N9K-1) host=172.31.229.207; username=admin; password=CTO1234!;;
-	N9K-2) host=172.31.230.234; username=admin; password=CTO1234!;;
-	FI) host=10.30.119.66; username=admin; password=cisco;;
-	*) return;;
-    esac
-    ksSshTo ${host} ${username} ${password}
-}
-function ksGoG10
-{
-    local host
-    local username
-    local password
-    local dest=$(ksGetChoice 'TOR PXE cobbler N9K-2 N9K-3  FI FI-A FI-B ipmiDIRECTOR DIRECTOR')
-    case ${dest} in
-	TOR) host=172.31.229.64; username=openstack-read; password=C3l12345 ;;
-	PXE) host=172.20.231.57; username=openstack-read; password=CTO1234! ;;
-	cobbler) host=172.29.74.8; username=root; password=cisco123 ;;
-	N9K-2) host=10.30.119.100; username=admin; password=CTO1234! ;;
-	N9K-3) host=10.30.119.101; username=admin; password=CTO1234! ;;
-	FI) host=10.23.228.253; username=admin; password=cisco ;;
-	FI-A) host=10.23.228.251; username=admin; password=cisco ;;
-	FI-B) host=10.23.228.252; username=admin; password=cisco ;;
-	ipmiDIRECTOR) ipmitool -I lanplus -H 172.31.228.230 -U cobbler -P cobbler shell; return ;;
-	DIRECTOR) host=10.23.230.134; username=stack; password=cisco123 ;;
-	*) echo Word mismatch, check line code; return;;
-    esac
-    ksSshTo ${host} ${username} ${password}
 }
 function kkrepo
 {
@@ -1011,96 +992,46 @@ EOF
     esac
 }
 
-function kkgrep()
-{
-cat <<EOF
-find bar foe -name *.c[           # how to find all *.c and *. in ~ bar and foe dirs
-grep -A 2 -B 3 -E "foo|bar"		  # how to grep foo and bar and print 2 lines before and 3 lines after
-EOF
-}
-
 function kkref() {
-cat <<EOF
-mount -o rw,remount /dev/sda1
-echo CONFIG_DEBUG_IN=y > .config ; make oldconfig #build with debug
-make -j32 CC=distcc ARCH=x86_64                   #build with DISTCC
-make V=1                                          #build with verbose printout
-echo "savedefault --default=1 --once" |grub #say grub to reboot once
-echo kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst #reboot if panic
-syscall:	check include/asm/unistd.h for __NR_syscallname
+    _section bash
+    echo 'for _ in \$(ls); do echo _ ; done'
+    echo 'while true ; do echo 123 ; done # busy cycle'
+    echo '[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0'
+    echo '[[ 'aa bb' != *aa* ]] && echo ok'
 
-cscope -b -R          # build reference file
-cscope -b -q -k       # used
+    _section cscope
+    echo cscope -b -R          # build reference file
+    echo cscope -b -q -k       # used
 
-watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
+    _section diff
+    echo diff -pNU7 # p for function N
 
-ps -L -p pid # shows all threads for process
+    _section grep
+    echo 'find bar foe -name *.c['           # how to find all *.c and *. in ~ bar and foe dirs
+    echo 'grep -A 2 -B 3 -E "foo|bar"'		 # how to grep foo and bar and print 2 lines before and 3 lines after
 
-diff -pNU7 # p for function N
-EOF
+    _section grub
+    echo 'savedefault --default=1 --once | grub' #say grub to reboot once
+    echo 'kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst' #reboot if panic
+
+    _section kernel
+    echo 'syscall:	check include/asm/unistd.h for __NR_syscallname'
+
+    _section mount
+    echo mount -o rw,remount /dev/sda1
+
+    _section ps
+    echo ps -L -p pid # shows all threads for process
+
+    _section vim
+    echo 'vim "+e ++enc=utf8"'   # how to vim with russian support (cp1251 utf8  koi8r cp866)
+    echo 'gf <C-w>f <C-w>gf'     # how to vim open file under cursor
+    echo '<C-]> <C-T> <C-O>'     # how to vim go forth and back
+    echo ':%s/pattert/string/cg' # how to vim substitute
+
+    _section watch
+    echo watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
 }
-
-function kkbash() {
-    cat <<EOF
-for _ in \`some_cmd\`; do echo _ ; done
-while true ; do echo 123 ; done # busy cycle
-[[ -n \${tmp} ]] && echo OK   # execute if len(tmp) is not 0
-[[ 'aa bb' != *aa* ]] && echo ok
-EOF
-}
-
-function ksRefPuppet ()
-{
-   cat <<EOF
-git clone https://github.com/CiscoSystems/puppet_openstack_builder
-cd puppet_openstack_builder
-git checkout icehouse
-cd install-scripts
-export build_server_ip=<YOUR_BUILD_NODE_IP>
-bash setup.sh
-puppet aggent -td --server=build-server.domain.name --pluginsync
-EOF
-}
-
-function kkos()
-{
-cat <<EOF
-mysql --user=nova --password=nova nova
-select id,cidr,project_id  from networks;
-
-nova keypair-add --pub-key ~/.ssh/id_rsa.pub vaio
-neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default
-neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default
-
-neutron net-list
-neutron net-create ext46 --router:external --shared
-neutron net-delete ext46
-neutron subnet-list
-neutron subnet-create ext46 10.100.0.0/16 --name=sub4
-neutron subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac
-neutron subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless
-neutron subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful
-
-neutron router-create r46
-neutron router-gateway-set r46 ext46
-neutron router-interface-add r6 sub6
-
-nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859
-nova delete i1
-EOF
-}
-
-function kkvim
-{
-cat << EOF
-vim "+e ++enc=utf8"   # how to vim with russian support (cp1251 utf8  koi8r cp866)
-gf <C-w>f <C-w>gf     # how to vim open file under cursor
-<C-]> <C-T> <C-O>     # how to vim go forth and back
-:%s/pattert/string/cg # how to vim substitute
-EOF
-}
-
-
 function ksTailLogAfs
 {
     cd /var/log
@@ -1139,7 +1070,7 @@ function ksTcpDump
     ;;
     esac
 }
-function sk_deploy_key_pair()
+function kk_deploy_key_pair()
 { # Check that ssh private-public is indeed a pair and deploy them to the given server
     local what_to_deploy=$1
     local private=$2
@@ -1166,12 +1097,8 @@ function sk_deploy_key_pair()
     if [[ ${public_value} = ${public_value_from_private}* ]]; then
 	echo "${public} -> ${fingerprint}"
 	case ${what_to_deploy} in
-	    private)
-		sshpass -p ${password} scp ${private} ${user}@${server}:~/.ssh/id_rsa
-	    ;&
-	    public)
-		sshpass -p ${password} ssh ${user}@${server} echo ${public_value} >> ~/.ssh/authorized_keys
-	    ;;
+	    private) sshpass -p ${password} scp ${private} ${user}@${server}:~/.ssh/id_rsa;;
+	    public) sshpass -p ${password} ssh ${user}@${server} echo ${public_value} >> ~/.ssh/authorized_keys;;
 	esac
     else
 	echo "${private} and ${public} are not a match!"
