@@ -69,7 +69,7 @@ function _enok()
 }
 function _section()
 {
-    printf "\n%0100s\n" $1
+    printf "\n%-10s %0100s\n" $1
 }
 function ksPrintDevstackStatus()
 {
@@ -511,12 +511,11 @@ function ksAliasDefine()
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
     alias h='history'
     alias i='python setup.py install'
-    alias l='ls -F --color=tty'
-    alias l.='ls -dh .* --color=auto'
-    alias ll='ls -Flih --color=auto'
-    alias ll.='ls -Fldih .* --color=auto'
-    alias ld='ls -lad --color=auto'
-    alias ls='ls --color=auto'
+    alias l='ls -F'
+    alias l.='ls -dh .*'
+    alias ll='ls -Flih'
+    alias ll.='ls -Fldih .*'
+    alias ld='ls -lad'
     alias m='less'
     alias p="pstree -h"
     alias py="ipython"
@@ -655,13 +654,12 @@ function PingNode
    ping -c 1 $1 > /dev/null 2>&1
    [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
 }
-function ksMyEnvDeploy()
+function kkinit()
 {
     local my_env_command=$(ksGetChoice 'local remote update' $1)
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
-	[ ! -L ~/.vimrc ] && mv  ~/.vimrc ~/VimRcToCheck
 	[ -L ~/.vimrc ] || ln -s ${MY_VIM_RC} ~/.vimrc
 	;;
     remote)
@@ -894,25 +892,9 @@ function kkhex
 15 0xf 1111
 EOF
 }
-
-function kkrpm {
-   cat <<EOF
-list all packages  rpm -qa                   dpkg -l
-list files         rpm -ql name              dpkg -L name
-show info          rpm -qi name              dpkg -s name
-who owns the file  rpm -qf file              dpkg -S file
-show scripts       rpm -q --scripts name     cat /var/lib/dpkg/info name.xxx
-install package    rpm -ivh name             dpkg --force-architecture -i name
-verify package     rpm -V name               dpkg -V name
-key install        rpm --import key
-show key ring      rpm -qa gpg-pubkey*
-EOF
-}
-
 function kknet()
 {
 cat <<EOF
-
 sudo ip l a <name> type dummy		                             	# how to ip add interface
 sudo ip l a link eth0 name <name> type vlan id 2 loose_binding on   # how to ip add vlan interface on eth0
 sudo ip l s <name> up			                                 	# how to ip up interface
@@ -1019,6 +1001,17 @@ function kkref() {
 
     _section mount
     echo mount -o rw,remount /dev/sda1
+
+    _section packages
+    echo 'list all packages  rpm -qa                   dpkg -l'
+    echo 'list files         rpm -ql name              dpkg -L name'
+    echo 'show info          rpm -qi name              dpkg -s name'
+    echo 'who owns the file  rpm -qf file              dpkg -S file'
+    echo 'show scripts       rpm -q --scripts name     cat /var/lib/dpkg/info name.xxx'
+    echo 'install package    rpm -ivh name             dpkg --force-architecture -i name'
+    echo 'verify package     rpm -V name               dpkg -V name'
+    echo 'key install        rpm --import key'
+    echo 'show key ring      rpm -qa gpg-pubkey*'
 
     _section ps
     echo ps -L -p pid # shows all threads for process
