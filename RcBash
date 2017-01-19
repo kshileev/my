@@ -2,7 +2,7 @@
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
-PS1="\h:\W> "					   	    #prompt: hostname:dirname>
+PS1="\W> "	    #prompt: hostname:dirname>
 
 export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 export MY_USER=kshileev
@@ -71,6 +71,17 @@ function _section()
 {
     printf "\n%-10s %0100s\n" $1
 }
+function _get_input()
+{
+    local commands=$1
+    local command=$2
+    [[ -n ${command} ]] && [[ ${commands} == *${command}* ]] && echo ${command} && return
+    local default_command=$(echo ${commands} | cut -d ' ' -f1)
+    local input
+    read -p "choose from ${commands} [default=${default_command}]: " input
+    [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
+    echo ${input:-${default_command}}
+}
 function ksPrintDevstackStatus()
 {
     local log_file=`find ~/os /opt -name stack.sh.log 2>/dev/null`
@@ -87,21 +98,22 @@ function ksAddLineToFileIfNotThere()
     [ -f ${file} ] || touch ${file}
     grep "${line}" ${file} || echo ${line} >> ${file}
 }
-function ksMacRandom()
+function kkmac()
 {
     echo $(od -An -N6 -tx1 /dev/urandom | sed -e 's/^  *//' -e 's/  */:/g' -e 's/:$//' -e 's/^\(.\)[13579bdf]/\10/')
 }
-function ksVirtVm()
+function ksvirtvm()
 {
     local vm_name='build_server'
     local vm_disk_format=raw
     local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
     local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
 
-    virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
+    local cmd="virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
         --os-variant ubuntutrusty \
         --cdrom ${vm_iso_path} \
-        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}
+        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}"
+    echo $cmd
 }
 function kkvirsh()
 {
@@ -114,7 +126,7 @@ function kkvirsh()
     alias v1="virsh console ${server}"
     alias v2="virsh vncdisplay ${server}"
 
-    local virsh_command=$(ksGetChoice 'kill-all new-vm')
+    local virsh_command=$(_get_input 'kill-all new-vm')
     case ${virsh_command} in
         kill-all)
 	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
@@ -124,7 +136,7 @@ function kkvirsh()
 	         virsh pool-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-destroy
 	         virsh pool-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-undefine
 	       ;;
-        new-vm) ksVirtVm ;;
+        new-vm) kkvirtvm ;;
     esac
 }
 function ks_list_of_ifaces()
@@ -140,20 +152,9 @@ function ksGetInput()
     read -p "${text} [default=${default}]: " input
     echo ${input:-${default}}
 }
-function ksGetChoice()
-{
-    local commands=$1
-    local command=$2
-    [[ -n ${command} ]] && [[ ${commands} == *${command}* ]] && echo ${command} && return
-    local default_command=$(echo ${commands} | cut -d ' ' -f1)
-    local input
-    read -p "choose from ${commands} [default=${default_command}]: " input
-    [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
-    echo ${input:-${default_command}}
-}
 function kkos()
 {
-    local nova_command=${1:-$(ksGetChoice 'help config status')}
+    local nova_command=${1:-$(_get_input 'help config status')}
     case ${nova_command} in
         config)
             local devstack_config=$(find ~ -wholename '*/devstack/openrc')
@@ -198,7 +199,7 @@ function kkos()
 }
 function kkdevstack()
 {
-    local devstack_command=$(ksGetChoice 'config run result cleanup' $1)
+    local devstack_command=$(_get_input 'config run result cleanup' $1)
     case ${devstack_command} in
     config)
             local conf_file_name=local.conf
@@ -274,7 +275,7 @@ WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
 WaasTbMsk1Edge='172.18.6.40'
 WaasTbMsk1Core='172.18.6.41'
 
-function ksWaasGoTbPod9
+function kkold
 {
     local ClientPort=22131
     local ServerPort=22134
@@ -283,26 +284,24 @@ function ksWaasGoTbPod9
     local EdgeIp=2.75.57.162
     local CoreIp=2.75.57.34
 
+    
     ssh -2NfL ${ClientPort}:${ClientIp}:3389 kshileev@xe-kite.cisco.com
     ssh -2NfL ${ServerPort}:${ServerIp}:3389 kshileev@xe-kite.cisco.com
     rdesktop -u Administrator -p watchThis  -T WinServer -g 1024x768 localhost:${ClientPort}  &
     rdesktop -u Administrator -p watchThis  -T WinClient -g 1024x768 localhost:${ServerPort}  &
 
 
-    xterm -geometry 140x36+1600+10 -bg steelblue -fg black -title "EDGE conf log disk pri not" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
-
-    xterm -geometry 140x36-900-10  -bg lightblue -fg black -title "EDGE-DBG sh conn stat" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
-
-    xterm -geometry 130x36-5+10 -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
-
-    xterm -geometry 130x36-5-10 -bg black         -fg white -title LOCAL &
+    xterm -geometry 140x36+1600+10 -bg steelblue     -fg black -title "EDGE conf log disk pri not" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 140x36-900-10  -bg lightblue     -fg black -title "EDGE-DBG sh conn stat" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 130x36-5+10    -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
+    xterm -geometry 130x36-5-10    -bg black         -fg white -title LOCAL &
 }
-function WaasSocket
+function WaasSocket()
 {
     if [ ! -S ${WaasSocketFile} ]; then
-	echo "Creating file_socket to Cisco BLD server..."
-	ssh -2NfL ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
-	ssh -2Nfp ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
+	    echo "Creating file_socket to Cisco BLD server..."
+	    ssh -2NfL ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
+	    ssh -2Nfp ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
     fi
 }
 function ksWaasSyncDown
@@ -436,7 +435,7 @@ EOF
 }
 function kkrepo
 {
-    local repo=$(ksGetChoice 'os-sqe rally devstack tempest cisco-networking cisco-kloudbuster barracuda ovzctl ovzkernel')
+    local repo=$(_get_input 'os-sqe rally devstack tempest cisco-networking cisco-kloudbuster barracuda ovzctl ovzkernel')
     case ${repo} in
 	rally) git clone https://git.openstack.org/openstack/rally;;
 	devstack) git clone https://github.com/openstack-dev/devstack.git;;
@@ -473,7 +472,7 @@ function ksBootOnce
 }
 function ksCscopePrepare
 {
-    local what=$(ksGetChoice 'devstack c-proj')
+    local what=$(_get_input 'devstack c-proj')
     echo Preparing CSCOPE to browse in $PWD
     mkdir -p ${MY_CSCOPE_DIR}
     case ${what} in
@@ -484,22 +483,24 @@ function ksCscopePrepare
 	    ;;
     esac
 }
+function kklab()
+{
+    cd ~/repo/os-sqe
+    kkvenv
+    fab bash
+    . tmp.aliases
+    rm tmp.aliases
+}
 function ksAliasDefine()
 {
     echo Defines aliases
     alias a='alias'
-    alias ar='. ~/VE/rally/bin/activate'
-    alias cdm="cd ${MY_DIR}"
-    alias cdt="cd /opt/stack/tempest"
     alias df='df -h'
-    alias dm='dmesg'
     alias di="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
     alias du='du -h'
     alias e='echo'
     alias ee="vim ${MY_BASH_RC}"
     alias fk="find . -name \"*.${MY_USER}\""
-    alias g8='ksGoG8'
-    alias g10='ksGoG10'
     alias gb='git branch -vv'
     alias gc='git checkout -- . && git clean -f'
     alias gd='git diff'
@@ -510,7 +511,6 @@ function ksAliasDefine()
     alias gs='git status'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
     alias h='history'
-    alias i='python setup.py install'
     alias l='ls -F'
     alias l.='ls -dh .*'
     alias ll='ls -Flih'
@@ -522,14 +522,9 @@ function ksAliasDefine()
     alias pss='ksShowProcess'
     alias pt="patch -p1 -b -z .${USER}"
     alias pw="ps uxwf"
-    alias q='. ~/buzzoola/deploy/provision.sh'
-    alias src=". ${MY_BASH_RC}"
+    alias src=". ~/.bashrc"
     alias sslt='ps auxw |grep ssh |grep -v grep'
     alias s='ssh -o StrictHostKeyChecking=no'
-    alias u='cd ..'
-    alias v='ksVirtStatus'
-    alias ve='ksVENV'
-
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
     #alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
@@ -541,14 +536,13 @@ function ksAliasDefine()
 #    alias   0gos='sshpass -p girl:click.bravo ssh -R 7777:localhost:22 russup@support.swsoft'
 #    alias   0gred='sshpass -p 1q2w3e ssh kir@red.dragon.gdc.mirantis.sar'
 #    alias   0gblu='sshpass -p 1q2w3e ssh kir@blue.dragon.gdc.mirantis.sar'
-    alias dsd='cd ~/devstack && git checkout 905275ec9f51614911fbb915f8bba9896b3ab684'
 }
-function ksKirGrep
+function kkgrep
 {
     [ -z "$1" ] && echo Usage $FUNCNAME symbol || echo $1 a\is in :
     find . -name *.[ch]pp | xargs grep $1
 }
-function ksSizeOf
+function kksizeof
 {
 	if [ "$#" == "0" ]; then
 		echo Usage: $0 c1i1
@@ -605,7 +599,7 @@ subnet 10.0.0.0 netmask 255.255.255.0 {
 }
 EOF
 }
-function ksGenClass
+function kkclass
 {
     local Class=$(ksGetInput 'Class name' 'KirClass')
     local Base=$(ksGetInput 'Base name' 'KirBase')
@@ -656,7 +650,7 @@ function PingNode
 }
 function kkinit()
 {
-    local my_env_command=$(ksGetChoice 'local remote update' $1)
+    local my_env_command=$(_get_input 'local remote update' $1)
     case ${my_env_command} in
     local)
         ksAddLineToFileIfNotThere "[ -f ${MY_BASH_RC} ] && . ${MY_BASH_RC}" ~/.bashrc
@@ -772,8 +766,8 @@ function ksIntallKernel2Remote
     ls configs/
     local Node=$(ksGetInput 'remote node name' 'tom')
     PingNodeOrExit ${Node}
-    local Arch=$(ksGetChoice 'x86_64 i386')
-    local Conf=$(ksGetChoice '.config')
+    local Arch=$(_get_input 'x86_64 i386')
+    local Conf=$(_get_input '.config')
     [ -z "$Conf" ] || cp configs/${Conf} .config
     make ARCH=${Arch} nonint_oldconfig   ; [ "$?" != "0" ] && return 1
     make ARCH=${Arch}                    ; [ "$?" != "0" ] && return 1
@@ -811,7 +805,7 @@ function ksOvzNewCt
     vzctl start ${ctid}
   done
 }
-function ksRefRus {
+function kkrus(){
     cat  <<EOF
 Это русский текст в кодировке UTF8
 Ё!"№;%:?*()_+/
@@ -869,7 +863,6 @@ cat <<EOF
                         33 Я  .-.- я-маал-я-маал
 EOF
 }
-
 function kkhex
 {
     cat <<EOF
@@ -938,7 +931,7 @@ sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 
 ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
 EOF
 
-    local net_cmd=$(ksGetChoice 'sh-kern tcpdump del-nic del-netns')
+    local net_cmd=$(_get_input 'sh-kern tcpdump del-nic del-netns')
     echo ${net_cmd}
     case ${net_cmd} in
     sh-kern)
@@ -949,27 +942,28 @@ EOF
 	sudo sysctl -a | grep use_tempaddr
 	;;
     tcpdump)
-	ifaces=$(ks_list_of_ifaces)
-	iface=$(ksGetChoice "${ifaces}")
-	filter=$(ksGetChoice 'icmp6 dns')
-	case ${filter} in
-	    dns) filter='port 53' ;;
-	esac
-	sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
+	    ifaces=$(ks_list_of_ifaces)
+	    iface=$(_get_input "${ifaces}")
+	    filter=$(_get_input 'icmp6 dns dhcp')
+	    case ${filter} in
+	        dns) filter='port 53' ;;
+            dhcp) filter='((port 67 or port 68) and (udp[8:1] = 0x1))' ;;
+  	    esac
+	    sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
 	;;
     del-nic)
-	ip a
-	local re=$(ksGetInput 'enter re' 'q.*')
-	for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
-	    echo Deleting interface ${interface}...
-	    sudo ip l d ${interface}
-	done
+	    ip a
+	    local re=$(ksGetInput 'enter re' 'q.*')
+	    for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
+	        echo Deleting interface ${interface}...
+	        sudo ip l d ${interface}
+	    done
     ;;
     del-netns)
-	for namespace in `ip net`; do
-	    echo Deleting namespace ${namespace}...
-	    sudo ip net d ${namespace}
-	done
+	    for namespace in `ip net`; do
+	        echo Deleting namespace ${namespace}...
+	        sudo ip net d ${namespace}
+	    done
     ;;
     esac
 }
@@ -1054,15 +1048,6 @@ includefile /etc/ntp/crypto/pw
 keys /etc/ntp/keys
 EOF
 }
-function ksTcpDump
-{
-    local tcpdump_command=${1:-$(ksGetChoice 'dhcp')}
-    case ${tcpdump_command} in
-    dhcp)
-	sudo tcpdump -i any -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'
-    ;;
-    esac
-}
 function kk_deploy_key_pair()
 { # Check that ssh private-public is indeed a pair and deploy them to the given server
     local what_to_deploy=$1
@@ -1099,7 +1084,7 @@ function kk_deploy_key_pair()
 }
 function ksSshKey
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(ksGetChoice 'pair-ssh add-public add-private pair-cert fingerprint')}
+    local ssh_command=${1:-$(_get_input 'pair-ssh add-public add-private pair-cert fingerprint')}
     case ${ssh_command} in
     add-public-local)
         mkdir -p ~/.ssh
@@ -1113,7 +1098,7 @@ function ksSshKey
         ssh-add -l
         echo Currently available :
 	local prv_keys=$(find $HOME -name *.pk)
-	local prv_key=$(ksGetChoice $(prv_keys))
+	local prv_key=$(_get_input $(prv_keys))
         [ -f ${prv_key} ] && ssh-add ${prv_key}
 	;;
     pair-cert)
@@ -1182,6 +1167,11 @@ function kklog()
     local log_regex=$2
     local minutes=$3
     sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
+}
+function kkssh()
+{
+    local lab = _get_input "g7-2 marahaika"
+    echo $lab
 }
 ksAliasDefine
 [ -f /etc/bash_completion ] && . /etc/bash_completion
