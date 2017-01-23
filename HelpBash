@@ -1,0 +1,181 @@
+function kkhelp-net(){
+cat <<EOF
+sudo ip l a <name> type dummy		                             	# how to ip add interface
+sudo ip l a link eth0 name <name> type vlan id 2 loose_binding on   # how to ip add vlan interface on eth0
+sudo ip l s <name> up			                                 	# how to ip up interface
+sudo ip l d <name>					                                # how to ip delete interface
+sudo ip l s <name> promisc on			                            # how to ip promisc
+sudo ip l s <name> promisc off
+sudo ip -6 a a 2005:1975::1/64 dev eth0	                    		# how to ip add ipv6
+sudo ip -6 a d 2005:1969::1/64 dev eth0			                    # how to ip remove ipv6
+
+sudo ip r a 10.0.15.0/28 via 10.30.1.180                            # how to ip add route via ip
+sudo ip r a 10.0.5.1 dev vlan105                                    # how to ip add route to interface
+sudo ip r c default via 10.20.30.40 dev eth0		                # how to ip change default route
+
+sudo ip net d <ns_name>				                            	# how to ip delete namespace
+
+sudo brctl addif br105 vlan105
+
+sudo virsh net-list
+sudo virsh net-destroy net_name
+sudo virsh net-undefine net_name
+
+
+sudo ovs-vsvtl show                                    # how to ovs show
+sudo ovs-vsctl add-br <name> && ip l s dev <name> up   # how to ovs add bridge
+sudo ovs-vsctl del-br <name>                           # how to ovs delete bridge
+
+net:  Fedora                                       Ubuntu
+      /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+
+sudo ettercap -C -i eth0                 # start listening with on eth0
+sudo tcpdump -vv -n -t -i eth0 -c 10     #
+
+
+sshpass -p default ssh admin@172.18.6.40                                   # how to sshpass
+ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no user@ip    # how to ssh without new host questions
+
+tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # how to tcpdump dhcp DISCOVER REQUEST INFORM
+sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 neighbours solicitation and advertisiment
+
+
+ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
+EOF
+}
+function kkhelp() {
+    _section bash
+    echo 'for _ in \$(ls); do echo _ ; done'
+    echo 'while true ; do echo 123 ; done # busy cycle'
+    echo '[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0'
+    echo '[[ 'aa bb' != *aa* ]] && echo ok'
+
+    _section cscope
+    echo cscope -b -R          # build reference file
+    echo cscope -b -q -k       # used
+
+    _section diff
+    echo diff -pNU7 # p for function N
+
+    _section grep
+    echo 'find bar foe -name *.c['           # how to find all *.c and *. in ~ bar and foe dirs
+    echo 'grep -A 2 -B 3 -E "foo|bar"'		 # how to grep foo and bar and print 2 lines before and 3 lines after
+
+    _section grub
+    echo 'savedefault --default=1 --once | grub' #say grub to reboot once
+    echo 'kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst' #reboot if panic
+
+    _section kernel
+    echo 'syscall:	check include/asm/unistd.h for __NR_syscallname'
+
+    _section mount
+    echo mount -o rw,remount /dev/sda1
+
+    _section packages
+    echo 'list all packages  rpm -qa                   dpkg -l'
+    echo 'list files         rpm -ql name              dpkg -L name'
+    echo 'show info          rpm -qi name              dpkg -s name'
+    echo 'who owns the file  rpm -qf file              dpkg -S file'
+    echo 'show scripts       rpm -q --scripts name     cat /var/lib/dpkg/info name.xxx'
+    echo 'install package    rpm -ivh name             dpkg --force-architecture -i name'
+    echo 'verify package     rpm -V name               dpkg -V name'
+    echo 'key install        rpm --import key'
+    echo 'show key ring      rpm -qa gpg-pubkey*'
+
+    _section ps
+    echo ps -L -p pid # shows all threads for process
+
+    _section vim
+    echo 'vim "+e ++enc=utf8"'   # how to vim with russian support (cp1251 utf8  koi8r cp866)
+    echo 'gf <C-w>f <C-w>gf'     # how to vim open file under cursor
+    echo '<C-]> <C-T> <C-O>'     # how to vim go forth and back
+    echo ':%s/pattert/string/cg' # how to vim substitute
+
+    _section watch
+    echo watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
+}
+function kkrus(){
+    cat  <<EOF
+Это русский текст в кодировке UTF8
+Ё!"№;%:?*()_+/
+ё1234567890-=\
+
+??? ????? ? ????????? KOI8R
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+
+??? ⥪?? ? ????஢?? CP866
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+
+??? ????? ? ????????? CP1251
+?!"#*:,.;()_+| ?
+?1234567890-=\ /
+EOF
+}
+
+function kkmorze()
+{
+cat <<EOF
+01 Aa ._   alfa     А   01 А .-    ай-даа            A          alpha
+02 Bb -... bravo    Б   02 Б -...  баа-ки-те-кут     B          beta
+03 Cc -.-. charlie  Ц   03 В  .--  ви-даа-лаа        W          gamma
+04 Dd -..  delta    Д   04 Г  --.  гоо-воо-ри        G          delta
+05 Ee .    echo     Е   05 Д  -..  доо-ми-ки         D          epsilon
+06 Ff ..-. foxtrot  Ф   06 Е  .    есть              E          zeta
+07 Gg --.  golf     Г   07 Ё                                    eta
+08 Hh .... hotel    Х   08 Ж  ...- жи-ви-те-стоо     V          theta
+09 Ii ..   india    И   09 З  --.. заа-каа-ти-ки     Z          iota
+10 Jj .--- juliett  Й   10 И  ..   и-ди              I          kappa
+11 Kk -.-  kilo     К   11 Й  .--- ку-даа-поо-шлаа   J          lambda
+12 Ll .-.. lima     Л   12 К  -.-  каак-де-лаа       K          mu
+13 Mm --   mike     М   13 Л  .-.. лу-наа-ти-ки      L          nu
+14 Nn -.   november Н   14 М  --   маа-маа           M          xi
+15 Oo ---  oskar    О   15 Н  -.   ноо-мер           N          omicron
+16 Pp .--. papa     П   16 О  ---  оо-коо-лоо        O          pi
+17 Qq --.- quebec   Щ   17 П  .--. пи-лаа-поо-ёт     P          rho
+18 Rr .-.  romeo    Р   18 Р  .-.  ре-шаа-ет         R          sigma
+19 Ss ...  sierra   С   19 С  ...  са-мо-лёт         S          tau
+20 Tt -    tango    Т   20 Т  -    таак              T          upsilon
+21 Uu ..-  uniform  У   21 У  ..-  у-нес-лаа         U          fi
+22 Vv ...- victor   Ж   22 Ф  ..-. фи-ли-моон-чик    F          chi
+23 Ww .--  whiskey  В   23 Х  .... хи-ми-чи-те       H          psi
+24 Xx -..- x-ray    Ь   24 Ц  -.-. цаа-пли-цаа-пли   C          omega
+25 Yy -.-- yankee   Ы   25 Ч
+26 Zz --.. zulu     З   26 Ы  -.-- ыы-не-наа-доо     Y
+                        27 Ш  ---- шаа-роо-ваа-рыы
+                        28 Щ  --.- щаа-ваам-не-шаа   Q
+                        29 Ь  -..- тоо-мяг-кий-знаак X
+                        30 Ъ
+                        31 Э  ..-..э-ле-роон-чи-ки
+                        32 Ю  ..-- ю-ли-аа-наа
+                        33 Я  .-.- я-маал-я-маал
+EOF
+}
+function kkhex
+{
+    cat <<EOF
+ hex table:
+ 0 0x0 0000
+ 1 0x1 0001
+ 2 0x2 0010
+ 3 0x3 0011
+ 4 0x4 0100
+ 5 0x5 0101
+ 6 0x6 0110
+ 7 0x7 0111
+ 8 0x8 1000
+ 9 0x9 1001
+10 0xa 1010
+11 0xb 1011
+12 0xc 1100
+13 0xd 1101
+14 0xe 1110
+15 0xf 1111
+EOF
+}
+function kkhelp-docker(){
+    _section docker
+    echo 'list all running ctn:  docker ps'
+    echo 'inspect container   :  docker inspect name_or_id'
+}
