@@ -43,12 +43,16 @@ sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 
 ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
 EOF
 }
-function kkhelp() {
+function kkhelp-bash()
+{
     _section bash
-    echo 'for _ in \$(ls); do echo _ ; done'
+    echo 'for _ in "first path" "second path"; do echo $_ ; done'
     echo 'while true ; do echo 123 ; done # busy cycle'
     echo '[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0'
     echo '[[ 'aa bb' != *aa* ]] && echo ok'
+}
+function kkhelp() {
+    kkhelp-bash
 
     _section cscope
     echo cscope -b -R          # build reference file

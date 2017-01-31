@@ -977,6 +977,15 @@ function kklog()
     local minutes=$3
     sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
 }
+function kkkeys()
+{
+    for key in ~/Google\ Drive/Kirill/Keys/KirVaio.private ~/repo/os-sqe/configs/keys/private; do
+        [[ -f ${key} ]] && ssh-add "${key}"
+    done
+}
+
 ksAliasDefine
-[ -f /etc/bash_completion ] && . /etc/bash_completion
+kkkeys
+
+[[ -f /etc/bash_completion ]] && . /etc/bash_completion
 source ${MY_DIR}/HelpBash
