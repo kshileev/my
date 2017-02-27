@@ -1,3 +1,8 @@
+function kkhelp-docker(){
+    _section docker
+    echo 'list all running ctn:  docker ps'
+    echo 'inspect container   :  docker inspect name_or_id'
+}
 function kkhelp-net(){
 cat <<EOF
 sudo ip l a <name> type dummy		                             	# how to ip add interface
@@ -43,6 +48,16 @@ sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 
 ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
 EOF
 }
+function kkhelp-vim()
+{
+    _section vim
+    echo 'vim "+e ++enc=utf8"'   with russian support cp1251 utf8  koi8r cp866
+    echo 'gf <C-w>f <C-w>gf'     open file under cursor
+    echo '<C-]> <C-T> <C-O>'     go forth and back
+    echo ':%s/patter/string/cg'  substitute
+    echo ':e file_name'		 edit file 
+    echo 'vim -c :10d'           delete line 10
+}
 function kkhelp-bash()
 {
     _section bash
@@ -52,8 +67,9 @@ function kkhelp-bash()
     echo '[[ 'aa bb' != *aa* ]] && echo ok'
 }
 function kkhelp() {
+    kkhelp-docker
     kkhelp-bash
-
+    kkhelp-vim
     _section cscope
     echo cscope -b -R          # build reference file
     echo cscope -b -q -k       # used
@@ -88,12 +104,6 @@ function kkhelp() {
 
     _section ps
     echo ps -L -p pid # shows all threads for process
-
-    _section vim
-    echo 'vim "+e ++enc=utf8"'   # how to vim with russian support (cp1251 utf8  koi8r cp866)
-    echo 'gf <C-w>f <C-w>gf'     # how to vim open file under cursor
-    echo '<C-]> <C-T> <C-O>'     # how to vim go forth and back
-    echo ':%s/pattert/string/cg' # how to vim substitute
 
     _section watch
     echo watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
@@ -177,9 +187,4 @@ function kkhex
 14 0xe 1110
 15 0xf 1111
 EOF
-}
-function kkhelp-docker(){
-    _section docker
-    echo 'list all running ctn:  docker ps'
-    echo 'inspect container   :  docker inspect name_or_id'
 }
