@@ -1,4 +1,4 @@
-# Login interactive shell: /etc/bash then ~/.bash_profile
+p Login interactive shell: /etc/bash then ~/.bash_profile
 # Non-log shell: execute ~/.bashrc only
 # Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
@@ -500,7 +500,7 @@ function ksAliasDefine()
     alias ll.='ls -Fldih .*'
     alias ld='ls -lad'
     alias m='less'
-    alias p="pstree -h"
+    alias nifed='ssh nifed'
     alias py="ipython"
     alias pss='ksShowProcess'
     alias pt="patch -p1 -b -z .${USER}"
@@ -508,6 +508,8 @@ function ksAliasDefine()
     alias src=". ~/.bashrc"
     alias sslt='ps auxw |grep ssh |grep -v grep'
     alias s='ssh -o StrictHostKeyChecking=no'
+    alias store='sshpass -p ubuntu ssh localadmin@store'
+    alias kki="python $MY_DIR/py/cipher.py"
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
     #alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
@@ -983,7 +985,10 @@ function kkkeys()
         [[ -f ${key} ]] && ssh-add "${key}"
     done
 }
-
+function kkssh()
+{
+    ssh $1 || echo Problem
+}
 ksAliasDefine
 kkkeys
 

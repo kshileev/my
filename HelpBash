@@ -55,8 +55,9 @@ function kkhelp-vim()
     echo 'gf <C-w>f <C-w>gf'     open file under cursor
     echo '<C-]> <C-T> <C-O>'     go forth and back
     echo ':%s/patter/string/cg'  substitute
-    echo ':e file_name'		 edit file 
+    echo ':e file_name'		 edit file
     echo 'vim -c :10d'           delete line 10
+    echo '$'			 to end of line
 }
 function kkhelp-bash()
 {
@@ -65,6 +66,7 @@ function kkhelp-bash()
     echo 'while true ; do echo 123 ; done # busy cycle'
     echo '[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0'
     echo '[[ 'aa bb' != *aa* ]] && echo ok'
+    echo 'while grep resync /proc/mdstat; do sleep 5; done'	#run while string resync in file
 }
 function kkhelp() {
     kkhelp-docker
