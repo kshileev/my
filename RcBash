@@ -1,6 +1,6 @@
-p Login interactive shell: /etc/bash then ~/.bash_profile
+# Login interactive shell: /etc/bash then ~/.bash_profile
 # Non-log shell: execute ~/.bashrc only
-# Non-interactive shell: execute sript pointed by $ENV, nothing if $ENV = ""
+# Non-interactive shell: execute script pointed by $ENV, nothing if $ENV = ""
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
 PS1="\W> "	    #prompt: hostname:dirname>
 
@@ -27,7 +27,6 @@ export ARTISTIC_STYLE_OPTIONS=${MY_DIR}/RcAstyle
 export LD_LIBRARY_PATH=$HOME
 export ROOTGUI=native
 export TZ='Europe/Moscow'
-[ -d $HOME/ElasticLoadBalancing ] && AWS_ELB_HOME=$HOME
 ColorNormal="\\033[0;39m"
 ColorBlack="\\033[0;30m";     ColorDarkGray="\\033[1;30m"
 ColorBlue="\\033[0;34m";      ColorLightBlue="\\033[1;34m"
@@ -42,7 +41,6 @@ setcolor_caption="echo -en \\033[1;34m"
 setcolor_success="echo -en \\033[1;32m"
 setcolor_failure="echo -en \\033[1;31m"
 setcolor_normal="echo -en \\033[0;39m"
-
 
 _ecount=0
 function _e()
@@ -841,8 +839,9 @@ function ksTailLogAfs
 	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log	
     fi
 }
-function ksNtpCreateConfig
+function kkntp
 {
+    echo Creating ntp config in /etc/ntp.conf
     cat > /etc/ntp.conf <<EOF
 driftfile /var/lib/ntp/drift
 
@@ -893,25 +892,16 @@ function kk_deploy_key_pair()
 	echo "${private} and ${public} are not a match!"
     fi
 }
-function ksSshKey
+function kkkeys()
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(_get_input 'pair-ssh add-public add-private pair-cert fingerprint')}
+    local ssh_command=${1:-$(_get_input 'deploy-to finger get-sqe')}
     case ${ssh_command} in
-    add-public-local)
-        mkdir -p ~/.ssh
-        [ -f ~/.ssh/authorized_keys ] || touch ~/.ssh/authorized_keys
-        [ -z "$(grep "${kir_vaio_pub}" ~/.ssh/authorized_keys)" ] && echo ${kir_vaio_pub} >> ~/.ssh/authorized_keys
-        echo "KirVaio public key is added"
+    deploy-to)
+      local host
+      local public=$(cat ~/.ssh/id_rsa.pub)
+      read -p 'Enter username@host:' local
+      ssh $local "echo ${public} >> .ssh/authorized_keys"
     ;;
-    add-private)
-	[ -z "$SSH_AGENT_PID" ] && echo ssh-agent not running. &&  return 1
-        echo Currently loaded keys:
-        ssh-add -l
-        echo Currently available :
-	local prv_keys=$(find $HOME -name *.pk)
-	local prv_key=$(_get_input $(prv_keys))
-        [ -f ${prv_key} ] && ssh-add ${prv_key}
-	;;
     pair-cert)
 	echo Operations with p12 and pem public-private pairs
         ls ${MY}/keys/* ${HOME}/.ssh/*
@@ -923,20 +913,15 @@ function ksSshKey
         echo ${Public} and ${Private}
         [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
     ;;
-    fingerprint)
-        ls ${HOME}/.ssh/* ${MY_DIR}/keys/*
-	local private=$(ksGetInput 'Which private key')
-	[ -z "${private}"  ] && return
-	sk_deploy_key_pair check ${private}
+    finger)
+        for key in ${HOME}/.ssh/id_rsa; do
+            echo ${key}: $(ssh-keygen -E md5 -lf ${key})
+        done
     ;;
+    get-sqe)
+        curl https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/public.key -o ~/.ssh/id_rsa.pub
+        curl https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
     esac
-}
-function ksJenkins
-{
-    wget -q -O - http://pkg.jenkins-ci.org/debian/jenkins-ci.org.key | sudo apt-key add -
-    echo deb http://pkg.jenkins-ci.org/debian binary/ | sudo tee -a /etc/apt/sources.list
-    sudo apt-get update
-    sudo apt-get install jenkins
 }
 function kkps()
 {
@@ -979,18 +964,11 @@ function kklog()
     local minutes=$3
     sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
 }
-function kkkeys()
-{
-    for key in ~/Google\ Drive/Kirill/Keys/KirVaio.private ~/repo/os-sqe/configs/keys/private; do
-        [[ -f ${key} ]] && ssh-add "${key}"
-    done
-}
 function kkssh()
 {
     ssh $1 || echo Problem
 }
 ksAliasDefine
-kkkeys
 
 [[ -f /etc/bash_completion ]] && . /etc/bash_completion
 source ${MY_DIR}/HelpBash
