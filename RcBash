@@ -150,6 +150,25 @@ function ksGetInput()
     read -p "${text} [default=${default}]: " input
     echo ${input:-${default}}
 }
+function kkelk()
+{
+    local cmd=$(_get_input 'index indexR docker')
+    case ${cmd} in
+        index)
+            curl -XGET 'localhost:9200/_cat/indices?v&pretty'
+
+            # curl -H "Content-Type: application/json" -XPOST 'localhost:9200/resultnfvbench-2017.10.18/_bulk?pretty&refresh' --data-binary "@resultnfvbench-2017.10.18.json"
+        ;;
+        indexR)
+            curl -XGET 'mgm.foxberry:9200/_cat/indices?v&pretty'
+        ;;
+        docker)
+            docker run -d -p 9200:9200 -p 9300:9300 -it -h elasticsearch --name elasticsearch docker.elastic.co/elasticsearch/elasticsearch:6.0.0
+            docker run -d -p 5601:5601 -h kibana --name kibana --link elasticsearch:elasticsearch -v "$HOME":/data docker.elastic.co/kibana/kibana:6.0.0
+            # docker run -d -p 9500:9500 -h logstash --name logstash --link $name:$name --rm -v "$HOME":/data logstash -f /data/repo/my/logstash.conf
+        ;;
+    esac
+}
 function kkos()
 {
     local nova_command=${1:-$(_get_input 'help config status')}
@@ -507,7 +526,7 @@ function ksAliasDefine()
     alias sslt='ps auxw |grep ssh |grep -v grep'
     alias s='ssh -o StrictHostKeyChecking=no'
     alias store='sshpass -p ubuntu ssh localadmin@store'
-    alias kki="python $MY_DIR/py/cipher.py"
+    alias kki="python $MY_DIR/py/cipher.py -s"
     #alias   0m64='make -j32 CC=distcc ARCH=x86_64'
     #alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
     #alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
@@ -892,15 +911,15 @@ function kk_deploy_key_pair()
 	echo "${private} and ${public} are not a match!"
     fi
 }
-function kkkeys()
+function kksecurity()
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(_get_input 'deploy-to finger get-sqe')}
+    local ssh_command=${1:-$(_get_input 'deploy-to finger self-signed-certificate')}
     case ${ssh_command} in
     deploy-to)
       local host
-      local public=$(cat ~/.ssh/id_rsa.pub)
-      read -p 'Enter username@host:' local
-      ssh $local "echo ${public} >> .ssh/authorized_keys"
+      curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
+      ssh-copy-id localadmin@jm
+      ssh-copy-id localadmin@store
     ;;
     pair-cert)
 	echo Operations with p12 and pem public-private pairs
@@ -914,13 +933,11 @@ function kkkeys()
         [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
     ;;
     finger)
-        for key in ${HOME}/.ssh/id_rsa; do
-            echo ${key}: $(ssh-keygen -E md5 -lf ${key})
-        done
+      ssh-add -l -E md5
     ;;
-    get-sqe)
-        curl https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/public.key -o ~/.ssh/id_rsa.pub
-        curl https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+    self-signed-certificate)
+      openssl req -x509 -newkey rsa:4096 -keyout KirSelfSignedCertKey.pem -out KirSelfSignedCert.pem -days 365
+    ;;
     esac
 }
 function kkps()
