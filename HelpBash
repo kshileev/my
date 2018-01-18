@@ -1,3 +1,8 @@
+function kkhelp-os(){
+    _section openstack
+    echo "openstack server list | grep  -vE '\+|ID' |cut -c 3-38                                                              #find server ids"
+    echo "openstack server list | grep  -vE '\+|ID' |cut -c 3-38 | while read id; do openstack server show $id -f json; done  #list all servers"
+}
 function kkhelp-docker(){
     _section docker
     echo 'list all running ctn:  docker ps'
@@ -62,26 +67,33 @@ function kkhelp-vim()
 function kkhelp-bash()
 {
     _section bash
+    echo 'virsh list | grep running | cut -d " " -f2,7 | while read id; do [ -n "$id" ] && echo virsh save $id.save; done'
     echo 'for _ in "first path" "second path"; do echo $_ ; done'
-    echo 'while true ; do echo 123 ; done # busy cycle'
-    echo '[[ -n ${tmp} ]] && echo OK   # execute if len(tmp) is not 0'
-    echo '[[ 'aa bb' != *aa* ]] && echo ok'
-    echo 'while grep resync /proc/mdstat; do sleep 5; done'	#run while string resync in file
+    echo 'while true ; do echo 123 ; done                   #busy cycle'
+    echo '[[ -n ${tmp} ]] && echo OK                        #execute if len(tmp) is not 0'
+    echo '[[ 'aa bb' != *aa* ]] && echo ok'                 #if
+    echo 'while grep resync /proc/mdstat; do sleep 5; done	#run while string resync in file'
+    echo 'ls | while read x; do echo $x; done               #pipe list of files to a loop   '
+}
+function kkhelp-grep()
+{
+    _section grep
+    echo 'find bar foe -name *.c['           # how to find all *.c and *. in ~ bar and foe dirs
+    echo 'grep -A 2 -B 3 -E "foo|bar"'		 # how to grep foo and bar and print 2 lines before and 3 lines after
 }
 function kkhelp() {
+    kkhelp-os
     kkhelp-docker
     kkhelp-bash
     kkhelp-vim
+    kkhelp-grep
+
     _section cscope
     echo cscope -b -R          # build reference file
     echo cscope -b -q -k       # used
 
     _section diff
     echo diff -pNU7 # p for function N
-
-    _section grep
-    echo 'find bar foe -name *.c['           # how to find all *.c and *. in ~ bar and foe dirs
-    echo 'grep -A 2 -B 3 -E "foo|bar"'		 # how to grep foo and bar and print 2 lines before and 3 lines after
 
     _section grub
     echo 'savedefault --default=1 --once | grub' #say grub to reboot once
