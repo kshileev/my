@@ -950,7 +950,7 @@ function kkps()
 function kkvenv()
 {
     git status || return
-    local dir=${MY_VENV_DIR}/$(git remote -v | grep fetch | cut -d / -f 5 | cut -d . -f 1)
+    local dir="$(git rev-parse --show-toplevel)/venv"
     [ -d ${dir} ] || virtualenv ${dir}
     . ${dir}/bin/activate
     pip install -r requirements.txt
