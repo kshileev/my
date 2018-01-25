@@ -51,6 +51,7 @@ sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 
 
 
 ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
+ssh-keygen -R hostname
 EOF
 }
 function kkhelp-vim()
@@ -70,6 +71,7 @@ function kkhelp-bash()
     echo 'virsh list | grep running | cut -d " " -f2,7 | while read id; do [ -n "$id" ] && echo virsh save $id.save; done'
     echo 'for _ in "first path" "second path"; do echo $_ ; done'
     echo 'while true ; do echo 123 ; done                   #busy cycle'
+    echo 'git status && echo in repo || echo out of repo    # conditional on first command status'
     echo '[[ -n ${tmp} ]] && echo OK                        #execute if len(tmp) is not 0'
     echo '[[ 'aa bb' != *aa* ]] && echo ok'                 #if
     echo 'while grep resync /proc/mdstat; do sleep 5; done	#run while string resync in file'

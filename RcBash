@@ -949,11 +949,11 @@ function kkps()
 }
 function kkvenv()
 {
-    [ ! -d .git ] && echo "It's not a git repo!, aborting" && return
-    local venv=$(basename $(pwd))
-    [ -d ${MY_VENV_DIR}/${venv} ] || virtualenv ${MY_VENV_DIR}/${venv}
-    . ${MY_VENV_DIR}/${venv}/bin/activate
-    [ -f requirements.txt ] && pip install -r requirements.txt
+    git status || return
+    local dir=${MY_VENV_DIR}/$(git remote -v | grep fetch | cut -d / -f 5 | cut -d . -f 1)
+    [ -d ${dir} ] || virtualenv ${dir}
+    . ${dir}/bin/activate
+    pip install -r requirements.txt
 }
 function ksKloudBuster()
 {
