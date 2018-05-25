@@ -1,3 +1,4 @@
+from unittest import TestCase
 
 
 class Decipher:
@@ -35,7 +36,6 @@ class Decipher:
         for i, symbol in enumerate(message):
             result.append(Decipher.caesar_cipher(message=symbol, secret_shift=ord(secret_word[i % len(secret_word)]), is_decipher=is_decipher))
         return ''.join(result)
-
 
     @staticmethod
     def random_cipher(message):
@@ -80,6 +80,11 @@ def main():
     import argparse
     from os import path
     import re
+    import logging
+    import getpass
+
+    logger = logging.getLogger('cipher')
+    logger.setLevel(logging.INFO)
 
     def abs_file_path(value):
         abs_path = path.abspath(path.expanduser(value))
@@ -88,26 +93,60 @@ def main():
         return abs_path
 
     parser = argparse.ArgumentParser(prog='cipher')
-    parser.add_argument('-s', required=True, type=str, dest='secret', help='secret word')
-    parser.add_argument('dir_path', type=abs_file_path, nargs='?', default='~/Google Drive', help='path to dir with info file')
+    parser.add_argument('dir_path', type=abs_file_path, nargs='?', help='path to dir with info file')
     args = parser.parse_args()
+    secret = getpass.getpass()
 
-    ints = re.findall('\(.{1,2}(\d{1,3})\)', args.secret)
+    ints = re.findall('\(.{1,2}(\d{1,3})\)', secret)
     if len(ints) != 1:
-        raise ValueError(args.secret + ' is not of you know what type!')
+        raise ValueError('Secret is not of you know what type!')
 
-    abs_file_path = path.join(args.dir_path, 'info' + ints[0])
-    with open(abs_file_path) as f:
+    file_path = path.join(args.dir_path, 'info' + ints[0])
+    encripted_file_path = path.expanduser('~/Google Drive/info{}'.format(ints))
+
+    with open(file_path) as f:
         text = f.read()
 
-    if text.startswith('INFO:'):
-        text += 'ciphered with secret: ' + args.secret + ' from ' + abs_file_path
-        with open(abs_file_path, 'w') as f:
-            f.write(Decipher.viginere_cipher(message=text, secret_word=args.secret))
-        print abs_file_path, 'with secret', args.secret, 'created'
+    if file_path == encripted_file_path:
+        text += 'ciphered with secret: ' + secret + ' from ' + file_path
+        with open(encripted_file_path, 'w') as f:
+            f.write(Decipher.viginere_cipher(message=text, secret_word=secret))
+        logger.info(encripted_file_path + ' created')
     else:
-        print Decipher.viginere_cipher(message=text, secret_word=args.secret, is_decipher=True)
-        print 'taken from', abs_file_path
+        decoded = Decipher.viginere_cipher(message=text, secret_word=args.secret, is_decipher=True)
+        logger.info(decoded + '\ntaken from ' + file_path)
+
+
+class TestDecipher(TestCase):
+    def setUp(self):
+        super(TestDecipher, self).setUp()
+        self.plain_text = 'Some plain text\n with new line'
+
+    def t1est_random_decipher(self):
+        encrypted = Decipher.random_cipher(message='This is a sample')
+        self.assertEqual(['This', 'is', 'a', 'sample'], Decipher.random_decipher(message=encrypted))
+
+    def test_caesar_cipher(self):
+        self.assertEqual('*', Decipher.caesar_cipher(message=' ', secret_shift=10))
+
+        self.assertEqual('A', Decipher.caesar_cipher(message='A', secret_shift=0))
+
+        self.assertEqual('z', Decipher.caesar_cipher(message='a', secret_shift=25))
+        self.assertEqual('z', Decipher.caesar_cipher(message='a', secret_shift=51))
+
+        self.assertEqual('a', Decipher.caesar_cipher(message='a', secret_shift=26))
+        self.assertEqual('b', Decipher.caesar_cipher(message='a', secret_shift=27))
+        self.assertEqual('c', Decipher.caesar_cipher(message='a', secret_shift=28))
+
+        for i in range(30):
+            ciphered = Decipher.caesar_cipher(message=self.plain_text, secret_shift=i)
+            decipered = Decipher.caesar_cipher(message=ciphered, secret_shift=i, is_decipher=True)
+            self.assertEqual(self.plain_text, decipered)
+
+    def test_viginere_cipher(self):
+        ciphered = Decipher.viginere_cipher(message=self.plain_text, secret_word='LEMON')
+        deciphered = Decipher.viginere_cipher(message=ciphered, secret_word='LEMON', is_decipher=True)
+        self.assertEqual(self.plain_text, deciphered)
 
 
 if __name__ == '__main__':

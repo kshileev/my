@@ -171,7 +171,7 @@ function kkelk()
 }
 function kkos()
 {
-    local nova_command=${1:-$(_get_input 'help config status')}
+    local nova_command=${1:-$(_get_input 'help delete config status')}
     case ${nova_command} in
         config)
             local devstack_config=$(find ~ -wholename '*/devstack/openrc')
@@ -183,10 +183,10 @@ function kkos()
         ;;
         status)
 	    echo Tenant: ${OS_TENANT_NAME} User: ${OS_USER_NAME}
-            nova list
-	    neutron net-list
-	    neutron subnet-list
-	    neutron port-list
+            openstack server list
+	    openstack network list
+	    openstack router list
+	    openstack port list
         ;;
         help)
             echo 'mysql --user=nova --password=nova nova'
@@ -196,22 +196,21 @@ function kkos()
             echo 'neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default'
             echo 'neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default'
 
-            echo 'neutron net-list'
             echo 'neutron net-create ext46 --router:external --shared'
-            neutron 'net-delete ext46'
-            neutron 'subnet-list'
-            neutron 'subnet-create ext46 10.100.0.0/16 --name=sub4'
-            neutron 'subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac'
-            neutron 'subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless'
-            neutron 'subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful'
+            echo 'neutron subnet-create ext46 10.100.0.0/16 --name=sub4'
+            echo 'neutron subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac'
+            echo 'neutron subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless'
+            echo 'neutron subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful'
 
-            neutron 'router-create r46'
-            neutron 'router-gateway-set r46 ext46'
-            neutron 'router-interface-add r6 sub6'
+            echo 'neutron router-create r46'
+            echo 'neutron router-gateway-set r46 ext46'
+            echo 'neutron router-interface-add r6 sub6'
 
-            nova 'boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859'
-            nova 'delete i1'
+            echo 'nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859'
         ;;
+	delete)
+	    echo "openstack network list -f json | grep ID | cut -d ":" -f 2 | cut -d '\"' -f 2 | xargs openstack network delete"
+	;;
         esac
 }
 function kkdevstack()

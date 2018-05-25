@@ -37,55 +37,63 @@ class JsonFormatter(logging.Formatter):
         if '@timestamp' not in d:
             d['@timestamp'] = self.formatTime(record=record, datefmt="%Y-%m-%dT%H:%M:%S.000Z")
         d['name'] = record.name
-        d['deployer-info'] = self._deployer_tag
-        d['jenkins'] = self._jenkins_tag
         return json.dumps(d)
 
 
-class JsonFilter(logging.Filter):
-    def filter(self, record):
-        return record.exc_text or '=' in record.message
+class MainLogFormatter(logging.Formatter):
+    def format(self, record):
+        return self._fmt.format(time='' if '+-' in record.msg else self.formatTime(record, datefmt=self.datefmt), msg=record.msg).strip()
 
 
-class MyLogger(logging.Logger):
+class MyFilter(logging.Filter):
     def __init__(self, name):
-        super(MyLogger, self).__init__(name)
-        text_log_name, json_log_name = 'text.log', 'json.log'
-        formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s [%(name)s]  %(message)s')
+        super(MyFilter, self).__init__(name)
+        self.func_name = name
 
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.DEBUG)
-        console_handler.setFormatter(formatter)
-
-        file_handler = logging.FileHandler(text_log_name)
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(formatter)
-
-        json_handler = logging.FileHandler(json_log_name)
-        json_handler.setLevel(logging.DEBUG)
-        json_handler.setFormatter(JsonFormatter())
-        json_handler.addFilter(JsonFilter())
-
-        self.setLevel(level=logging.DEBUG)
-        self.addHandler(file_handler)
-        self.addHandler(console_handler)
-        self.addHandler(json_handler)
-
-        logging.captureWarnings(True)
+    def filter(self, record):
+        return record.funcName == self.func_name
 
 
-logger = MyLogger(__file__)
+formatter = logging.Formatter(fmt='%(asctime)s %(levelname)s %(funcName)s %(message)s')
+
+console_h = logging.StreamHandler()
+console_h.setLevel(logging.DEBUG)
+console_h.addFilter(MyFilter('test_log1'))
+console_h.setFormatter(MainLogFormatter(fmt='{time} {msg}', datefmt='%b%d %H:%M:%S'))
+
+file_h = logging.FileHandler('a_text.log', mode='w')
+file_h.setLevel(logging.DEBUG)
+file_h.addFilter(MyFilter('test_log2'))
+file_h.setFormatter(formatter)
+
+json_h = logging.FileHandler('a_json.log', mode='w')
+json_h.setLevel(logging.DEBUG)
+json_h.setFormatter(JsonFormatter())
+
+logger = logging.getLogger('TEST')
+logger.setLevel(level=logging.DEBUG)
+logger.addHandler(file_h)
+logger.addHandler(console_h)
+logger.addHandler(json_h)
+
+logging.captureWarnings(True)
 
 
 class TestLog(TestCase):
     def setUp(self):
         super(TestLog, self).setUp()
 
-    def test_log(self):
-        logger.info('message')
-        logger.debug('message')
-        logger.error('message')
+    def test_log_exception(self):
         try:
-            raise Exception('artificial exception')
+            raise Exception('exception')
         except Exception as ex:
             logger.exception(ex)
+
+    def test_log_simple(self):
+        logger.info('info')
+        logger.debug('debug')
+        logger.error('error')
+
+    def test_log_via_get_logger(self):
+        log = logging.getLogger('TEST')
+        log.info('info')
