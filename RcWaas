@@ -1,0 +1,147 @@
+WaasSocketFile="/tmp/WAAS"
+WaasTunelPort="11111"
+WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
+WaasTbMsk1Edge='172.18.6.40'
+WaasTbMsk1Core='172.18.6.41'
+
+function WaasSocket()
+{
+    if [ ! -S ${WaasSocketFile} ]; then
+	    echo "Creating file_socket to Cisco BLD server..."
+	    ssh -2NfL ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
+	    ssh -2Nfp ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
+    fi
+}
+function ksWaasSyncDown
+{
+    if [ -d src -a -d ut -a -d include ]; then
+	WaasSocket #establish tunnel to CISCO network
+	local From=${WaasRemoteDir}/ao/smb/
+	echo "Syncing down CISCO->LOCAL  from $From to .:"
+	rsync -avz -e "ssh -S $WaasSocketFile" ${WaasExcludeList} --delete ${From} .
+	echo "Finished."
+    else
+	echo  "Current directory must contain <include> <src> <ut>, aborting."
+    fi
+}
+function ksWaasSyncUp
+{
+    if [ -d src -a -d ut -a -d include ]; then
+	WaasSocket #establish tunnel to CISCO network
+        local To=${WaasRemoteDir}/ao/smb
+	echo "Doing LOCAL->WAAS from . to $To:"
+        rsync -avz -e "ssh -S $WaasSocketFile" ${WaasExcludeList} --delete . ${To}
+	echo "Finished."
+    else
+	echo "Current directory must contain <include> <src> <ut>, aborting."
+    fi
+}
+function ksWaasGetRef
+{
+    WaasSocket #establish tunnel to CISCO network
+    local Shell=${WaasRemoteDir}/ao/shell
+    local Doc=${WaasRemoteDir}/derived/doc
+    echo "$Shell -> .:"
+    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete ${Shell} .
+    echo "$Doc -> .:"
+    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete ${Doc} .
+    echo "Finished."
+}
+function ksWaasDeploySmb
+{
+    WaasSocket
+    #local Dir=`mktemp -p /tmp -d WaasDeploySmb.XXXXXXXXXX`
+    local WaasTmpDir=/tmp/WaasSmbDeploy
+    mkdir -p ${WaasTmpDir}
+
+    echo "Getting SMBAO executables ${WaasRemoteDir} ->  ${WaasTmpDir}:"
+    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/derived/unicorn/bin/smbao ${WaasTmpDir}
+    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/derived/unicorn/lib/libsmbao.so ${WaasTmpDir}
+    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/x86_64-derived/unicorn/bin/smbao ${WaasTmpDir}/smbao64
+    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/x86_64-derived/unicorn/lib/libsmbao.so ${WaasTmpDir}/libsmbao64.so
+    cat >  ${WaasTmpDir}/deploy_smb <<EOF
+
+function Deploy
+{
+    local Main=\$PWD
+    local AfterRuby="/sw/unicorn/which.variant"
+    local Variant
+
+    ls -d /local/local1/kshileev/*/
+    read -p 'Choose variant: ' Variant
+    [ -z \$Variant ] && echo Nothing choosen, exiting && return
+
+    mount -o remount,rw /sw
+
+    if [ ! -f \$AfterRuby ]; then
+	echo "Running first time after ruby redeployment, saving ruby variant"
+        mkdir -p \$Main/ruby
+        cp /sw/unicorn/bin/smbao64 \$Main/ruby/smbao64
+        cp /sw/unicorn/bin/smbao   \$Main/ruby/smbao
+        cp /sw/unicorn/lib/libsmbao.so   \$Main/ruby/libsmbao.so
+        cp /sw/unicorn/lib64/libsmbao.so   \$Main/ruby/libsmbao64.so
+    fi
+
+    echo Deploying \$Variant
+    cp \$Variant/smbao         /sw/unicorn/bin/smbao64
+    cp \$Variant/libsmbao.so   /sw/unicorn/lib/libsmbao.so
+    cp \$Variant/libsmbao64.so /sw/unicorn/lib64/libsmbao.so
+    echo \$Variant > \$AfterRuby
+}
+
+Deploy
+tail -f ~/errorlog/smbao-errorlog.current
+EOF
+    cat > ${WaasTmpDir}/ps1 <<EOF
+export PS1="\!:\W> "
+alias k='cd /local/local1/kshileev'
+alias v='cat /sw/unicorn/which.variant'
+EOF
+    chmod +x ${WaasTmpDir}/deploy_smb
+    echo Deploying on edge ${WaasTbMsk1Edge} ....
+    sshpass -p default ssh admin@${WaasTbMsk1Edge} mkdir kshileev
+    sshpass -p default ssh admin@${WaasTbMsk1Edge} mkdir kshileev/fromBld
+    sshpass -p default scp ${WaasTmpDir}/*smbao* admin@${WaasTbMsk1Edge}:kshileev/fromBld
+    sshpass -p default scp ${WaasTmpDir}/deploy_smb admin@${WaasTbMsk1Edge}:kshileev/
+    sshpass -p default scp ${WaasTmpDir}/ps1 admin@${WaasTbMsk1Edge}:kshileev/
+    echo Deploying on core ${WaasTbMsk1Core} ....
+    sshpass -p default ssh admin@${WaasTbMsk1Core} mkdir kshileev
+    sshpass -p default ssh admin@${WaasTbMsk1Core} mkdir kshileev/fromBld
+    sshpass -p default scp ${WaasTmpDir}/*smbao* admin@${WaasTbMsk1Core}:kshileev/fromBld
+    sshpass -p default scp ${WaasTmpDir}/deploy_smb admin@${WaasTbMsk1Core}:kshileev/
+    sshpass -p default scp ${WaasTmpDir}/ps1 admin@${WaasTbMsk1Core}:kshileev/
+    rm -rf ${WaasTmpDir}
+    echo "Finished."
+}
+function ksWaasDeployRuby
+{
+    WaasSocket
+    local RubyName=ruby.$(date +%Y-%m-%d)
+    echo "Getting $RubyName:"
+    scp -P ${WaasTunelPort} ${WaasRemoteDir}/derived/ruby.bin /var/www/${RubyName}
+    echo "Executing EDGE reload" && sshpass -p default ssh admin@edge copy http install kshileev-lnx / ${RubyName}
+    sshpass -p default ssh admin@edge reload force
+    echo "Executing CORE reload" && sshpass -p default ssh admin@core copy http install kshileev-lnx / ${RubyName}
+    sshpass -p default ssh admin@core reload force
+}
+function kkold
+{
+    local ClientPort=22131
+    local ServerPort=22134
+    local ClientIp=172.23.142.133
+    local ServerIp=172.23.142.138
+    local EdgeIp=2.75.57.162
+    local CoreIp=2.75.57.34
+
+
+    ssh -2NfL ${ClientPort}:${ClientIp}:3389 kshileev@xe-kite.cisco.com
+    ssh -2NfL ${ServerPort}:${ServerIp}:3389 kshileev@xe-kite.cisco.com
+    rdesktop -u Administrator -p watchThis  -T WinServer -g 1024x768 localhost:${ClientPort}  &
+    rdesktop -u Administrator -p watchThis  -T WinClient -g 1024x768 localhost:${ServerPort}  &
+
+
+    xterm -geometry 140x36+1600+10 -bg steelblue     -fg black -title "EDGE conf log disk pri not" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 140x36-900-10  -bg lightblue     -fg black -title "EDGE-DBG sh conn stat" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
+    xterm -geometry 130x36-5+10    -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
+    xterm -geometry 130x36-5-10    -bg black         -fg white -title LOCAL &
+}

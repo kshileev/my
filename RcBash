@@ -4,7 +4,8 @@
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
 PS1="\W> "	    #prompt: hostname:dirname>
 
-export PATH="$HOME:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
+export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
+[[ -d $HOME/miniconda3 ]] && export PATH="$HOME/miniconda3/bin:$PATH"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
 export MY_VENV_DIR=${HOME}/venv
@@ -80,13 +81,15 @@ function _get_input()
     [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
     echo ${input:-${default_command}}
 }
-function ksPrintDevstackStatus()
+function kkinput()
 {
-    local log_file=`find ~/os /opt -name stack.sh.log 2>/dev/null`
-    grep -q "This is your host ip:" 2>/dev/null ${log_file} && ${setcolor_success} || ${setcolor_failure}
-    echo -n DS
-    ${setcolor_normal}
-    echo
+    local cmd=$*
+    local options=`$cmd`
+    local default=`echo $options | cut -d " " -f1`
+    local input
+    read -p "choose from ${options} [default=${default}]: " input
+    [[ ${options} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
+    echo ${input:-${default}}
 }
 function ksAddLineToFileIfNotThere()
 {
@@ -95,23 +98,6 @@ function ksAddLineToFileIfNotThere()
     echo $line
     [ -f ${file} ] || touch ${file}
     grep "${line}" ${file} || echo ${line} >> ${file}
-}
-function kkmac()
-{
-    echo $(od -An -N6 -tx1 /dev/urandom | sed -e 's/^  *//' -e 's/  */:/g' -e 's/:$//' -e 's/^\(.\)[13579bdf]/\10/')
-}
-function ksvirtvm()
-{
-    local vm_name='build_server'
-    local vm_disk_format=raw
-    local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
-    local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
-
-    local cmd="virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
-        --os-variant ubuntutrusty \
-        --cdrom ${vm_iso_path} \
-        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}"
-    echo $cmd
 }
 function kkvirsh()
 {
@@ -137,11 +123,6 @@ function kkvirsh()
         new-vm) kkvirtvm ;;
     esac
 }
-function ks_list_of_ifaces()
-{
-    echo $(ip l |grep UP | cut -f2 -d ':')
-}
-
 function ksGetInput()
 {
     local text=$1
@@ -169,113 +150,6 @@ function kkelk()
         ;;
     esac
 }
-function kkos()
-{
-    local nova_command=${1:-$(_get_input 'help delete config status')}
-    case ${nova_command} in
-        config)
-            local devstack_config=$(find ~ -wholename '*/devstack/openrc')
-            export OS_TENANT_NAME=demo
-            export OS_USERNAME=demo
-            export OS_PASSWORD=password
-            export OS_AUTH_URL='http://localhost:5000/v2.0'
-	    [ -z ${devstack_config} ] || source ${devstack_config}
-        ;;
-        status)
-	    echo Tenant: ${OS_TENANT_NAME} User: ${OS_USER_NAME}
-            openstack server list
-	    openstack network list
-	    openstack router list
-	    openstack port list
-        ;;
-        help)
-            echo 'mysql --user=nova --password=nova nova'
-            echo 'select id,cidr,project_id  from networks;'
-
-            echo 'nova keypair-add --pub-key ~/.ssh/id_rsa.pub vaio'
-            echo 'neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default'
-            echo 'neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default'
-
-            echo 'neutron net-create ext46 --router:external --shared'
-            echo 'neutron subnet-create ext46 10.100.0.0/16 --name=sub4'
-            echo 'neutron subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac'
-            echo 'neutron subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless'
-            echo 'neutron subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful'
-
-            echo 'neutron router-create r46'
-            echo 'neutron router-gateway-set r46 ext46'
-            echo 'neutron router-interface-add r6 sub6'
-
-            echo 'nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859'
-        ;;
-	delete)
-	    echo "openstack network list -f json | grep ID | cut -d ":" -f 2 | cut -d '\"' -f 2 | xargs openstack network delete"
-	;;
-        esac
-}
-function kkdevstack()
-{
-    local devstack_command=$(_get_input 'config run result cleanup' $1)
-    case ${devstack_command} in
-    config)
-            local conf_file_name=local.conf
-	    cat > ${conf_file_name} <<EOF
-[[local|localrc]]
-DEST=\${HOME}/os
-DATA_DIR=\${DEST}/data
-SERVICE_DIR=\${DEST}/status
-GIT_BASE=https://git.openstack.org
-TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
-TEMPEST_BRANCH=ipv6
-RECLONE=True
-
-MYSQL_PASSWORD=nova
-RABBIT_PASSWORD=nova
-SERVICE_TOKEN=nova
-SERVICE_PASSWORD=nova
-ADMIN_PASSWORD=nova
-
-ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-cond,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,rabbit
-enable_service mysql
-disable_service n-net
-enable_service q-svc
-enable_service q-agt
-enable_service q-l3
-enable_service q-dhcp
-enable_service q-meta
-enable_service q-lbaas
-enable_service neutron
-enable_service tempest
-
-NOVA_USE_NEUTRON_API=v2
-VOLUME_BACKING_FILE_SIZE=2052M
-API_RATE_LIMIT=False
-
-VERBOSE=True
-DEBUG=True
-
-LOGFILE=\$DEST/logs/stack.sh.log
-USE_SCREEN=True
-SCREEN_LOGDIR=\$DEST/logs
-
-IP_VERSION=4+6
-IPV6_PUBLIC_RANGE=2005::/64
-IPV6_PUBLIC_NETWORK_GATEWAY=2005::1
-REMOVE_PUBLIC_BRIDGE=False
-EOF
-                   echo ${conf_file_name} created
-        ;;
-    run)
-	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=${HOME}/current_tempest
-	;;
-    result)
-            testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
-        ;;
-    cleanup)
-	sudo rm -rf /etc/keystone /usr/local/bin/keyston* /etc/nova /usr/local/bin/nova* /etc/neutron /usr/local/bin/neutron* /etc/glance /usr/local/bin/glance* /etc/cinder /usr/local/bin/cinder* /etc/heat
-	;;
-    esac
-}
 
 function kkinfo()
 {   # shows usefull info about unknown command provided as argument
@@ -283,154 +157,6 @@ function kkinfo()
     local cmd_full_path=`which ${cmd_name}`
     file ${cmd_full_path}
     dpkg -S ${cmd_full_path}
-}
-
-WaasSocketFile="/tmp/WAAS"
-WaasTunelPort="11111"
-WaasRemoteDir="kshileev@localhost:/work/kshileev/tahoe"
-WaasTbMsk1Edge='172.18.6.40'
-WaasTbMsk1Core='172.18.6.41'
-
-function kkold
-{
-    local ClientPort=22131
-    local ServerPort=22134
-    local ClientIp=172.23.142.133
-    local ServerIp=172.23.142.138
-    local EdgeIp=2.75.57.162
-    local CoreIp=2.75.57.34
-
-    
-    ssh -2NfL ${ClientPort}:${ClientIp}:3389 kshileev@xe-kite.cisco.com
-    ssh -2NfL ${ServerPort}:${ServerIp}:3389 kshileev@xe-kite.cisco.com
-    rdesktop -u Administrator -p watchThis  -T WinServer -g 1024x768 localhost:${ClientPort}  &
-    rdesktop -u Administrator -p watchThis  -T WinClient -g 1024x768 localhost:${ServerPort}  &
-
-
-    xterm -geometry 140x36+1600+10 -bg steelblue     -fg black -title "EDGE conf log disk pri not" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
-    xterm -geometry 140x36-900-10  -bg lightblue     -fg black -title "EDGE-DBG sh conn stat" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${EdgeIp} &
-    xterm -geometry 130x36-5+10    -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
-    xterm -geometry 130x36-5-10    -bg black         -fg white -title LOCAL &
-}
-function WaasSocket()
-{
-    if [ ! -S ${WaasSocketFile} ]; then
-	    echo "Creating file_socket to Cisco BLD server..."
-	    ssh -2NfL ${WaasTunelPort}:adbu-bldsrv-03.cisco.com:22 kshileev@xe-kite.cisco.com
-	    ssh -2Nfp ${WaasTunelPort} kshileev@localhost -M -S ${WaasSocketFile}
-    fi
-}
-function ksWaasSyncDown
-{
-    if [ -d src -a -d ut -a -d include ]; then
-	WaasSocket #establish tunnel to CISCO network
-	local From=${WaasRemoteDir}/ao/smb/
-	echo "Syncing down CISCO->LOCAL  from $From to .:"
-	rsync -avz -e "ssh -S $WaasSocketFile" ${WaasExcludeList} --delete ${From} .
-	echo "Finished."
-    else
-	echo  "Current directory must contain <include> <src> <ut>, aborting."
-    fi
-}
-function ksWaasSyncUp
-{
-    if [ -d src -a -d ut -a -d include ]; then
-	WaasSocket #establish tunnel to CISCO network
-        local To=${WaasRemoteDir}/ao/smb
-	echo "Doing LOCAL->WAAS from . to $To:"
-        rsync -avz -e "ssh -S $WaasSocketFile" ${WaasExcludeList} --delete . ${To}
-	echo "Finished."
-    else
-	echo "Current directory must contain <include> <src> <ut>, aborting."
-    fi
-}
-function ksWaasGetRef
-{
-    WaasSocket #establish tunnel to CISCO network
-    local Shell=${WaasRemoteDir}/ao/shell
-    local Doc=${WaasRemoteDir}/derived/doc
-    echo "$Shell -> .:"
-    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete ${Shell} .
-    echo "$Doc -> .:"
-    rsync -avz -e "ssh -S $WaasSocketFile" --exclude=.CC --exclude=.ACME --delete ${Doc} .
-    echo "Finished."
-}
-function ksWaasDeploySmb
-{
-    WaasSocket
-    #local Dir=`mktemp -p /tmp -d WaasDeploySmb.XXXXXXXXXX`
-    local WaasTmpDir=/tmp/WaasSmbDeploy
-    mkdir -p ${WaasTmpDir}
-
-    echo "Getting SMBAO executables ${WaasRemoteDir} ->  ${WaasTmpDir}:"
-    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/derived/unicorn/bin/smbao ${WaasTmpDir}
-    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/derived/unicorn/lib/libsmbao.so ${WaasTmpDir}
-    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/x86_64-derived/unicorn/bin/smbao ${WaasTmpDir}/smbao64
-    rsync -az -e "ssh -S $WaasSocketFile" ${WaasRemoteDir}/x86_64-derived/unicorn/lib/libsmbao.so ${WaasTmpDir}/libsmbao64.so
-    cat >  ${WaasTmpDir}/deploy_smb <<EOF
-
-function Deploy
-{
-    local Main=\$PWD
-    local AfterRuby="/sw/unicorn/which.variant"
-    local Variant
-
-    ls -d /local/local1/kshileev/*/
-    read -p 'Choose variant: ' Variant
-    [ -z \$Variant ] && echo Nothing choosen, exiting && return
-
-    mount -o remount,rw /sw
-
-    if [ ! -f \$AfterRuby ]; then
-	echo "Running first time after ruby redeployment, saving ruby variant"
-        mkdir -p \$Main/ruby
-        cp /sw/unicorn/bin/smbao64 \$Main/ruby/smbao64
-        cp /sw/unicorn/bin/smbao   \$Main/ruby/smbao
-        cp /sw/unicorn/lib/libsmbao.so   \$Main/ruby/libsmbao.so
-        cp /sw/unicorn/lib64/libsmbao.so   \$Main/ruby/libsmbao64.so
-    fi
-
-    echo Deploying \$Variant
-    cp \$Variant/smbao         /sw/unicorn/bin/smbao64
-    cp \$Variant/libsmbao.so   /sw/unicorn/lib/libsmbao.so
-    cp \$Variant/libsmbao64.so /sw/unicorn/lib64/libsmbao.so
-    echo \$Variant > \$AfterRuby
-}
-
-Deploy
-tail -f ~/errorlog/smbao-errorlog.current
-EOF
-    cat > ${WaasTmpDir}/ps1 <<EOF
-export PS1="\!:\W> "
-alias k='cd /local/local1/kshileev'
-alias v='cat /sw/unicorn/which.variant'
-EOF
-    chmod +x ${WaasTmpDir}/deploy_smb
-    echo Deploying on edge ${WaasTbMsk1Edge} ....
-    sshpass -p default ssh admin@${WaasTbMsk1Edge} mkdir kshileev
-    sshpass -p default ssh admin@${WaasTbMsk1Edge} mkdir kshileev/fromBld
-    sshpass -p default scp ${WaasTmpDir}/*smbao* admin@${WaasTbMsk1Edge}:kshileev/fromBld
-    sshpass -p default scp ${WaasTmpDir}/deploy_smb admin@${WaasTbMsk1Edge}:kshileev/
-    sshpass -p default scp ${WaasTmpDir}/ps1 admin@${WaasTbMsk1Edge}:kshileev/
-    echo Deploying on core ${WaasTbMsk1Core} ....
-    sshpass -p default ssh admin@${WaasTbMsk1Core} mkdir kshileev
-    sshpass -p default ssh admin@${WaasTbMsk1Core} mkdir kshileev/fromBld
-    sshpass -p default scp ${WaasTmpDir}/*smbao* admin@${WaasTbMsk1Core}:kshileev/fromBld
-    sshpass -p default scp ${WaasTmpDir}/deploy_smb admin@${WaasTbMsk1Core}:kshileev/
-    sshpass -p default scp ${WaasTmpDir}/ps1 admin@${WaasTbMsk1Core}:kshileev/
-    rm -rf ${WaasTmpDir}
-    echo "Finished."
-}
-function ksWaasDeployRuby
-{
-    WaasSocket
-    local RubyName=ruby.$(date +%Y-%m-%d)
-    echo "Getting $RubyName:"
-    scp -P ${WaasTunelPort} ${WaasRemoteDir}/derived/ruby.bin /var/www/${RubyName}
-    echo "Executing EDGE reload" && sshpass -p default ssh admin@edge copy http install kshileev-lnx / ${RubyName}
-    sshpass -p default ssh admin@edge reload force
-    echo "Executing CORE reload" && sshpass -p default ssh admin@core copy http install kshileev-lnx / ${RubyName}
-    sshpass -p default ssh admin@core reload force
 }
 function kkrepo()
 {
@@ -448,7 +174,7 @@ function kkrepo()
 	my) git clone git@github.com:kshileev/my.git ;;
     esac
 }
-function ksInitrd
+function kkinitrd
 {
     echo Operations with INITRD:
     echo 1. unzip into current dir
@@ -482,21 +208,25 @@ function kkscope
 	    ;;
     esac
 }
-function kklab()
+function kkdiff()
 {
-    cd ~/repo/os-sqe
-    kkvenv
-    fab bash
-    . tmp.aliases
-    rm tmp.aliases
+    local diff_name=~/kshileev.diff.`date +%Y%m%d`
+    local origs=`find . -name "*.kshileev"`
+    rm -f $diff_name
+    for orig in $origs ; do
+        diff -uN $orig ${orig%.kshileev} >> $diff_name
+    done
+    echo see $diff_name
 }
-function ksAliasDefine()
+function kkalias()
 {
     echo Defines aliases
     alias a='alias'
     alias df='df -h'
-    alias di="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
     alias du='du -h'
+    alias di='docker images -a'
+    alias dp='docker ps -a'
+    alias dsqe='cd ~/repo/os-sqe && docker run -it --name sqe --rm -v $PWD:/os-sqe cloud-docker.cisco.com/os-sqe:3.6.5'
     alias e='echo'
     alias ee="vim ${MY_BASH_RC}"
     alias fk="find . -name \"*.${MY_USER}\""
@@ -509,6 +239,7 @@ function ksAliasDefine()
     alias gr='git remote -v'
     alias gs='git status'
     alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
+    alias gdi="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
     alias h='history'
     alias l='ls -F'
     alias l.='ls -dh .*'
@@ -806,46 +537,6 @@ function ksOvzNewCt
     vzctl start ${ctid}
   done
 }
-function kknet()
-{
-    local net_cmd=$(_get_input 'kkhelp-net sh-kern tcpdump del-nic del-netns')
-    echo ${net_cmd}
-    case ${net_cmd} in
-
-    sh-kern)
-	sudo sysctl -a | grep forward
-	echo
-	sudo sysctl -a |grep bridge
-	echo
-	sudo sysctl -a | grep use_tempaddr
-	;;
-    tcpdump)
-	    ifaces=$(ks_list_of_ifaces)
-	    iface=$(_get_input "${ifaces}")
-	    filter=$(_get_input 'icmp6 dns dhcp')
-	    case ${filter} in
-	        dns) filter='port 53' ;;
-            dhcp) filter='((port 67 or port 68) and (udp[8:1] = 0x1))' ;;
-  	    esac
-	    sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
-	;;
-    del-nic)
-	    ip a
-	    local re=$(ksGetInput 'enter re' 'q.*')
-	    for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
-	        echo Deleting interface ${interface}...
-	        sudo ip l d ${interface}
-	    done
-    ;;
-    del-netns)
-	    for namespace in `ip net`; do
-	        echo Deleting namespace ${namespace}...
-	        sudo ip net d ${namespace}
-	    done
-    ;;
-    esac
-}
-
 function ksTailLogAfs
 {
     cd /var/log
@@ -910,15 +601,18 @@ function kk_deploy_key_pair()
 	echo "${private} and ${public} are not a match!"
     fi
 }
-function kksecurity()
+function kkssh()
 { # manipulate with ssh keys
-    local ssh_command=${1:-$(_get_input 'deploy-to finger self-signed-certificate')}
+    echo "operations with ssh, keys, certificates"
+    local ssh_command=${1:-$(_get_input 'deploy-to add-ossqe-key finger self-signed-certificate')}
     case ${ssh_command} in
     deploy-to)
       local host
-      curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
       ssh-copy-id localadmin@jm
       ssh-copy-id localadmin@store
+    ;;
+    add-ossqe-key)
+      curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
     ;;
     pair-cert)
 	echo Operations with p12 and pem public-private pairs
@@ -963,16 +657,6 @@ function ksKloudBuster()
     python kb_gen_chart.py -c ~/kloud.html ~/kloud.json
     rm -f ~/kloud.json
 }
-function ksSshTo()
-{
-    host=${1}
-    username=${2}
-    password=${3}
-
-    echo ssh ${username}@${host} with ${password}
-    sshpass -p ${password} ssh ${username}@${host}
-
-}
 function kklog()
 {
     local log_file=$1
@@ -980,11 +664,11 @@ function kklog()
     local minutes=$3
     sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
 }
-function kkssh()
-{
-    ssh $1 || echo Problem
-}
-ksAliasDefine
 
+kkalias
 [[ -f /etc/bash_completion ]] && . /etc/bash_completion
+source ${MY_DIR}/RcMercury
+source ${MY_DIR}/RcNet
+source ${MY_DIR}/RcVirsh
+source ${MY_DIR}/RcOpenstack
 source ${MY_DIR}/HelpBash

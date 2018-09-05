@@ -1,0 +1,51 @@
+function kknet()
+{
+    local net_cmd=$(_get_input 'kkhelp-net sh-kern tcpdump del-nic del-netns')
+    echo ${net_cmd}
+    case ${net_cmd} in
+
+    sh-kern)
+	sudo sysctl -a | grep forward
+	echo
+	sudo sysctl -a |grep bridge
+	echo
+	sudo sysctl -a | grep use_tempaddr
+	;;
+    tcpdump)
+	    ifaces=$(ks_list_of_ifaces)
+	    iface=$(_get_input "${ifaces}")
+	    filter=$(_get_input 'icmp6 dns dhcp')
+	    case ${filter} in
+	        dns) filter='port 53' ;;
+            dhcp) filter='((port 67 or port 68) and (udp[8:1] = 0x1))' ;;
+  	    esac
+	    sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
+	;;
+    del-nic)
+	    ip a
+	    local re=$(ksGetInput 'enter re' 'q.*')
+	    for interface in `ip a | grep -E ${re}: | cut -f2 -d ':'`; do
+	        echo Deleting interface ${interface}...
+	        sudo ip l d ${interface}
+	    done
+    ;;
+    del-netns)
+	    for namespace in `ip net`; do
+	        echo Deleting namespace ${namespace}...
+	        sudo ip net d ${namespace}
+	    done
+    ;;
+    esac
+}
+function kkipa4()
+{
+    ip -4 a | grep inet
+}
+function ks_list_of_ifaces()
+{
+    echo $(ip l |grep UP | cut -f2 -d ':')
+}
+function kkmac()
+{
+    echo $(od -An -N6 -tx1 /dev/urandom | sed -e 's/^  *//' -e 's/  */:/g' -e 's/:$//' -e 's/^\(.\)[13579bdf]/\10/')
+}

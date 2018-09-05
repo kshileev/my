@@ -1,0 +1,119 @@
+function kkos()
+{
+    echo "Handle OpenStack"
+    local operation=${1:-$(_get_input 'help delete config status')}
+    local id_filter="-f json | grep ID | cut -d ":" -f 2 | cut -d '\"' -f 2"
+    case ${operation} in
+        config)
+            local devstack_config=$(find ~ -wholename '*/devstack/openrc')
+            export OS_TENANT_NAME=demo
+            export OS_USERNAME=demo
+            export OS_PASSWORD=password
+            export OS_AUTH_URL='http://localhost:5000/v2.0'
+	    [ -z ${devstack_config} ] || source ${devstack_config}
+        ;;
+        status)
+	    echo Tenant: ${OS_TENANT_NAME} User: ${OS_USER_NAME}
+            openstack server list
+	    openstack network list
+	    openstack router list
+	    openstack port list
+        ;;
+        help)
+            echo 'mysql --user=nova --password=nova nova'
+            echo 'select id,cidr,project_id  from networks;'
+
+            echo 'nova keypair-add --pub-key ~/.ssh/id_rsa.pub vaio'
+            echo 'neutron security-group-rule-create --protocol icmp --ethertype=IPv6 --direction ingress default'
+            echo 'neutron security-group-rule-create --protocol tcp --ethertype=IPv6 --direction ingress --port-range-min 22 --port-range-max 22 default'
+
+            echo 'neutron net-create ext46 --router:external --shared'
+            echo 'neutron subnet-create ext46 10.100.0.0/16 --name=sub4'
+            echo 'neutron subnet-create ext46 2001:db8:10::/64 --ip-version=6 --name=slaac6 --ipv6-ra-mode=slaac --ipv6-address-mod=slaac'
+            echo 'neutron subnet-create ext46 2001:db8:20::/64 --ip-version=6 --name=stateless6 --ipv6-ra-mode=dhcpv6-stateless --ipv6-address-mod=dhcpv6-stateless'
+            echo 'neutron subnet-create ext46 2001:db8:30::/64 --ip-version=6 --name=stateful6 --ipv6-ra-mode=dhcpv6-stateful --ipv6-address-mod=dhcpv6-stateful'
+
+            echo 'neutron router-create r46'
+            echo 'neutron router-gateway-set r46 ext46'
+            echo 'neutron router-interface-add r6 sub6'
+
+            echo 'nova boot i1 --flavor=1 --image=20e68825-3d8b-4d5c-ac84-17f1101ec643 --nic net-id=aacf221a-f348-4909-9b86-55a38b369859'
+        ;;
+	delete)
+	    for objects in "server" "port" "router" "network"; do
+		echo "openstack ${objects} list ${id_filter} | xargs openstack ${objects} delete";
+	    done
+	;;
+        esac
+}
+function ksPrintDevstackStatus()
+{
+    local log_file=`find ~/os /opt -name stack.sh.log 2>/dev/null`
+    grep -q "This is your host ip:" 2>/dev/null ${log_file} && ${setcolor_success} || ${setcolor_failure}
+    echo -n DS
+    ${setcolor_normal}
+    echo
+}
+function kkdevstack()
+{
+    local devstack_command=$(_get_input 'config run result cleanup' $1)
+    case ${devstack_command} in
+    config)
+            local conf_file_name=local.conf
+	    cat > ${conf_file_name} <<EOF
+[[local|localrc]]
+DEST=\${HOME}/os
+DATA_DIR=\${DEST}/data
+SERVICE_DIR=\${DEST}/status
+GIT_BASE=https://git.openstack.org
+TEMPEST_REPO=https://github.com/CiscoSystems/tempest.git
+TEMPEST_BRANCH=ipv6
+RECLONE=True
+
+MYSQL_PASSWORD=nova
+RABBIT_PASSWORD=nova
+SERVICE_TOKEN=nova
+SERVICE_PASSWORD=nova
+ADMIN_PASSWORD=nova
+
+ENABLED_SERVICES=g-api,g-reg,key,n-api,n-crt,n-obj,n-cpu,n-cond,cinder,c-sch,c-api,c-vol,n-sch,n-novnc,n-xvnc,n-cauth,horizon,rabbit
+enable_service mysql
+disable_service n-net
+enable_service q-svc
+enable_service q-agt
+enable_service q-l3
+enable_service q-dhcp
+enable_service q-meta
+enable_service q-lbaas
+enable_service neutron
+enable_service tempest
+
+NOVA_USE_NEUTRON_API=v2
+VOLUME_BACKING_FILE_SIZE=2052M
+API_RATE_LIMIT=False
+
+VERBOSE=True
+DEBUG=True
+
+LOGFILE=\$DEST/logs/stack.sh.log
+USE_SCREEN=True
+SCREEN_LOGDIR=\$DEST/logs
+
+IP_VERSION=4+6
+IPV6_PUBLIC_RANGE=2005::/64
+IPV6_PUBLIC_NETWORK_GATEWAY=2005::1
+REMOVE_PUBLIC_BRIDGE=False
+EOF
+                   echo ${conf_file_name} created
+        ;;
+    run)
+	cat ~/current_tempest && cd /opt/stack/tempest && testr run --load-list=${HOME}/current_tempest
+	;;
+    result)
+            testr last --subunit | subunit-1to2 | subunit2junitxml --output-to=kir_results.xml
+        ;;
+    cleanup)
+	sudo rm -rf /etc/keystone /usr/local/bin/keyston* /etc/nova /usr/local/bin/nova* /etc/neutron /usr/local/bin/neutron* /etc/glance /usr/local/bin/glance* /etc/cinder /usr/local/bin/cinder* /etc/heat
+	;;
+    esac
+}

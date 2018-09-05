@@ -1,0 +1,19 @@
+function kktestrepo()
+{
+    cd ~/repo/testrepo
+    local cfg=$(kkinput ls etc/CONFIG*)
+    local tst=$(kkinput ls */job/*_job.py)
+    alias dtr="cd ~/repo/testrepo &&  docker run -it --name tr --rm -v $PWD:/testrepo cloud-docker.cisco.com/testrepo:3.6.5 easypy $tst -testbed_file $cfg -no_upload -no_mail -xunit -release=local -submitter=kshileev"
+}
+function kkmercury()
+{
+    for host in comp1 comp2 ctl1 ctl2 ; do
+        ssh -t $host vtf ls /run/vpp/cli.sock
+    done
+}
+function kkmercury_collect_logs()
+{
+    for host in `ciscovim list-nodes` ; do
+        echo $host
+    done
+}

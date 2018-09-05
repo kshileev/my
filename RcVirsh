@@ -1,0 +1,13 @@
+function ksvirtvm()
+{
+    local vm_name='build_server'
+    local vm_disk_format=raw
+    local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
+    local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
+
+    local cmd="virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
+        --os-variant ubuntutrusty \
+        --cdrom ${vm_iso_path} \
+        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}"
+    echo $cmd
+}

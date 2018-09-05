@@ -1,7 +1,8 @@
+#/usr/bin/env python3
 from unittest import TestCase
 
 
-def main(args):
+def create_parser():
     import argparse
 
     def abs_dir_path(value):
@@ -15,22 +16,37 @@ def main(args):
     def ip(value):
         import ipaddress
 
-        return ipaddress.ip_address(unicode(value))
+        return ipaddress.ip_address(value)
 
-    parser = argparse.ArgumentParser(prog='example')
-    parser.add_argument('--foo', required=False, help='foo help')
-    parser.add_argument('--all', action='store_true', help='all help')
-    parser.add_argument('--ip', required=True, type=ip, help='ip address')
-    parser.add_argument('--str', type=str, choices=['a', 'b', 'c'], nargs='+', required=True, help='<REQUIRED> a list of strings')
-    parser.add_argument('file_path', type=abs_dir_path, nargs='?', default='~', help='path to dir')  # positional with one or no args with custom type, dest not allowed
+    parser = argparse.ArgumentParser()
+    subparsers =parser.add_subparsers(title='commands')
+    parserMp = subparsers.add_parser(name='mp', help='run tests on the pod')
+    parserMp.add_argument('--ip', required=True, type=ip, help='ip or name')
+    parserMp.add_argument('--prefix', required=True, type=str, help='prefix to match tests')
+    parserMp.add_argument('--debug', action='store_true', help='debug')
 
-    values = parser.parse_args(args)
-    return values.foo, values.all, values.str
+    parserCmd = subparsers.add_parser(name='cmd', help='manual operations on the pod')
+    parserCmd.add_argument('--pod', type=str, choices=['a', 'b', 'c'], nargs='+', required=True, help='<REQUIRED> a list of strings')
+
+    parserInfo = subparsers.add_parser(name='info', help='collect current pod status')
+    parserInfo.add_argument('file_path', type=abs_dir_path, nargs='?', default='~', help='path to dir')  # positional with one or no args with custom type, dest not allowed
+
+    return parser
 
 
 class TestParser(TestCase):
     def setUp(self):
         super(TestParser, self).setUp()
+        self.parser = create_parser()
 
-    def test_parser(self):
-        self.assertEqual((None, False, ['a', 'b', 'c']), main(args='--str a b c'.split()))
+    def test_help(self):
+        self.assertEqual('aaa', self.parser.parse_args([]))
+
+    def test_cmd1_with_ip(self):
+        self.assertEqual('',self.parser.parse_args('mp --ip 10.11.12.13'.split()))
+
+
+if __name__ == '__main__':
+    parser = create_parser()
+    args = parser.parse_args()
+    print(args)
