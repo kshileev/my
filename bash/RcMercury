@@ -17,3 +17,10 @@ function kkmercury_collect_logs()
         echo $host
     done
 }
+function mercUploadDiff()
+{
+    for file in `ls ~/Downloads/*.diff.zip` ; do
+        echo upload $file to
+        `grep mgm /etc/hosts`
+    done
+}

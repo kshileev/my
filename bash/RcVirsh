@@ -1,0 +1,37 @@
+function ksvirtvm()
+{
+    local vm_name='build_server'
+    local vm_disk_format=raw
+    local vm_disk_path=${MY_TMP_DIR}/${vm_name}.${vm_disk_format}
+    local vm_iso_path=/opt/trusty-server-cloudimg-amd64-disk1.img
+
+    local cmd="virt-install --name ${vm_name} --ram 4096 --arch=i686 --vcpus=1 --hvm --graphics vnc \
+        --os-variant ubuntutrusty \
+        --cdrom ${vm_iso_path} \
+        --disk path=${vm_disk_path},bus=virtio,size=20,sparse=false,format=${vm_disk_format}"
+    echo $cmd
+}
+function kkvirsh()
+{
+    echo Virtual machines: &&  virsh list --all
+    echo Virtual pools: && virsh pool-list --all
+    echo Virtual networks: &&  virsh net-list --all
+    echo Bridges: && brctl show
+    _section
+    local server=$(virsh list | grep lab | awk '{print $2}')
+    alias v1="virsh console ${server}"
+    alias v2="virsh vncdisplay ${server}"
+
+    local virsh_command=$(_get_input 'kill-all new-vm')
+    case ${virsh_command} in
+        kill-all)
+	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
+	         virsh list --all | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh undefine
+	         virsh net-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-destroy
+	         virsh net-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
+	         virsh pool-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-destroy
+	         virsh pool-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-undefine
+	       ;;
+        new-vm) kkvirtvm ;;
+    esac
+}

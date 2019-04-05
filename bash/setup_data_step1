@@ -1,0 +1,10 @@
+yaml_name=$1
+
+if [ -f $yaml_name ]; then
+    pod_mgm_ssh="$(basename $PWD).ssh.mgm"
+    scp $yaml_name $pod_mgm_ssh:openstack-configs/setup_data.yaml
+    ssh $pod_mgm_ssh ciscovim run --perform 1 -y
+    scp $pod_mgm_ssh:openstack-configs/setup_data.yaml $yaml_name
+else
+    echo "$yaml_name File not found!"
+fi

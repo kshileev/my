@@ -18,12 +18,35 @@ def create_parser():
 
         return ipaddress.ip_address(value)
 
+    class CreateCfgFile(argparse.Action):
+        def __call__(self, parser, args, path, option_string=None):
+            import os
+            import yaml
+
+            etc_d = {'testbed': {'name': 'fake_pod_name',
+                                 'servers': {'build_node': {'server': 'fake_mgm_name',
+                                                            'address': 'fake_mgm_ip',
+                                                            'username': 'root',
+                                                            'password': 'Lab1234!',
+                                                            'path': '/root/openstack-configs/'},
+                                             }
+                                 }}
+
+            if os.path.isfile(path):
+                with open(path) as f:
+                    setup_d = yaml.safe_load(f)
+                    pod_name = setup_d.get('PODNAME') or setup_d.get('TESTING_TESTBED_NAME', '').replace('-mgmt', '')
+                    etc_d['testbed']['servers']['build_node']['address'] = setup_d['TESTING_MGMT_NODE_API_IP'].split('/')[0]
+                    etc_d['testbed']['servers']['build_node']['server'] = pod_name + '-mgmt'
+                    etc_d['testbed']['name'] = pod_name
+
     parser = argparse.ArgumentParser()
     subparsers =parser.add_subparsers(title='commands')
     parserMp = subparsers.add_parser(name='mp', help='run tests on the pod')
     parserMp.add_argument('--ip', required=True, type=ip, help='ip or name')
     parserMp.add_argument('--prefix', required=True, type=str, help='prefix to match tests')
     parserMp.add_argument('--debug', action='store_true', help='debug')
+    parserMp.add_argument('--file_path', required=True, action=CreateCfgFile, help='create special cfg file depending on existing of provided path')
 
     parserCmd = subparsers.add_parser(name='cmd', help='manual operations on the pod')
     parserCmd.add_argument('--pod', type=str, choices=['a', 'b', 'c'], nargs='+', required=True, help='<REQUIRED> a list of strings')

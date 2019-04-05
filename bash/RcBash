@@ -4,12 +4,12 @@
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
 PS1="\W> "	    #prompt: hostname:dirname>
 
-export PATH="/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
+export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
+export PATH="$MY_DIR:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
 [[ -d $HOME/miniconda3 ]] && export PATH="$HOME/miniconda3/bin:$PATH"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
 export MY_VENV_DIR=${HOME}/venv
-export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
 export MY_BASH_RC=${MY_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
 export SYSSCREENRC=${MY_DIR}/RcScreen
@@ -98,30 +98,6 @@ function ksAddLineToFileIfNotThere()
     echo $line
     [ -f ${file} ] || touch ${file}
     grep "${line}" ${file} || echo ${line} >> ${file}
-}
-function kkvirsh()
-{
-    echo Virtual machines: &&  virsh list --all
-    echo Virtual pools: && virsh pool-list --all
-    echo Virtual networks: &&  virsh net-list --all
-    echo Bridges: && brctl show
-    _section
-    local server=$(virsh list | grep lab | awk '{print $2}')
-    alias v1="virsh console ${server}"
-    alias v2="virsh vncdisplay ${server}"
-
-    local virsh_command=$(_get_input 'kill-all new-vm')
-    case ${virsh_command} in
-        kill-all)
-	         virsh list | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh destroy
-	         virsh list --all | awk '{print $2}' | grep -v ^Name | xargs -n 1 virsh undefine
-	         virsh net-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-destroy
-	         virsh net-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh net-undefine
-	         virsh pool-list | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-destroy
-	         virsh pool-list --all | awk '{print $1}' | grep -vE "^Name|^-----" | xargs -n1 virsh pool-undefine
-	       ;;
-        new-vm) kkvirtvm ;;
-    esac
 }
 function ksGetInput()
 {
@@ -604,14 +580,16 @@ function kk_deploy_key_pair()
 function kkssh()
 { # manipulate with ssh keys
     echo "operations with ssh, keys, certificates"
-    local ssh_command=${1:-$(_get_input 'deploy-to add-ossqe-key finger self-signed-certificate')}
+    local ssh_command=${1:-$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')}
     case ${ssh_command} in
     deploy-to)
-      local host
-      ssh-copy-id localadmin@jm
-      ssh-copy-id localadmin@store
+      local host=$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')
+      ssh-copy-id $host
     ;;
-    add-ossqe-key)
+    add_kir_key)
+      ssh-add ~/Google\ Drive/Kirill/Keys/KirVaio.private
+    ;;
+    add_ossqe_key)
       curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
     ;;
     pair-cert)

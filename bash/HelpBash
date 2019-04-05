@@ -67,15 +67,41 @@ function kkhelp-vim()
 }
 function kkhelp-bash()
 {
-    _section bash
     echo 'virsh list | grep running | cut -d " " -f2,7 | while read id; do [ -n "$id" ] && echo virsh save $id.save; done'
-    echo 'for _ in "p 1" "p 2"; do echo $_ ; done           #'
-    echo 'ls | while read x; do echo element $x; done       #'
-    echo 'while true ; do echo 123 ; done                   # while(1) {cout<<"123\n";}'
-    echo 'git status && echo in repo || echo out of repo    # if (exec("git status") cout<<"in\n"; else cout<<"out\n";'
-    echo '[[ -n ${tmp} ]] && echo OK                        # if (tmp.length()) cout<<"OK\n";'
-    echo '[[ 'aa bb' != *aa* ]] && echo ok'                 # if ("aa bb".contains("aa") cout<<"ok\n";'
-    echo 'while grep resync /proc/mdstat; do sleep 5; done	# while ("string resync" in file'
+
+    echo 'while grep resync /proc/mdstat; do echo resync in file; sleep 5; done	# while ("string resync" in file'
+
+    local help_cmd=$(_get_input 'file_path file_status for_loop &&-|| while_loop substring_in_string inifinite_loop')
+    case ${help_cmd} in
+         file_path)
+            echo '$(dirname /a/b/c) produces:' "$(dirname /a/b/c)"
+            echo '$(basename /a/b/c) produces:' "$(basename /a/b/c)"
+	     ;;
+	     file_status)
+            echo '[[ -n ~/.bashrc ]] && echo not empty produces:'
+            [[ -n ~/.bashrc ]] && echo not empty
+	     ;;
+	     for_loop)
+            echo 'for _ in "p 1" "p 2"; do echo $_ ; done produces:'
+            for _ in "p 1" "p 2"; do echo $_ ; done
+	     ;;
+	     "&&-||")
+            echo 'git status && echo in repo || echo out of repo produces:'
+            git status && echo in repo || echo out of repo
+          ;;
+         while_loop)
+            echo 'ls | while read x; do echo element $x; done produces:'
+            ls | while read x; do echo element $x; done
+          ;;
+         inifinite_loop)
+            echo 'while true ; do echo 123 ; done produces infinite loop (WARNING)'
+            while true ; do echo 123 ; done
+         ;;
+         substring_in_string)
+             echo '[[ 'This is super text' == *super* ]] && echo text contains super produces:'
+             [[ 'This is super text' == *super* ]] && echo text contains super
+         ;;
+    esac
 }
 function kkhelp-grep()
 {
