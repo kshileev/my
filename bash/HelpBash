@@ -68,7 +68,6 @@ function kkhelp-vim()
 function kkhelp-bash()
 {
     echo 'virsh list | grep running | cut -d " " -f2,7 | while read id; do [ -n "$id" ] && echo virsh save $id.save; done'
-
     echo 'while grep resync /proc/mdstat; do echo resync in file; sleep 5; done	# while ("string resync" in file'
 
     local help_cmd=$(_get_input 'file_path file_status for_loop &&-|| while_loop substring_in_string inifinite_loop')
