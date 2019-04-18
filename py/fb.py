@@ -1,46 +1,22 @@
-# 'a' => 0
-# 'b' => 1
-# 'c' => 2
-# 'd' => 3
-# 'e' => 4
-# 'f' => 5
-# 'g' => 6
-# 'h' => 7
-# 'i' => 8
-# 'j' => 9
-# 'k' => 10
-# 'l' => 11
-# 'z' => 25
-#                    / "aba" 0, 1, 0
-# "aba" => [0, 1, 0]
-#                    \ "ak" 0, 10
-#
-# [0, 1, 0] => 2
-# 
-# [1, 1, 1, 1] => 5
-# b b b b
-# l b b 
-# b l b
-# b b l
-# l l
+import string
+alphabet = {x[0]: x[1] for x in enumerate(string.ascii_lowercase)}
 
 
-# enc is an array of digits between 0..9 and can by empty
-def ways(enc):
+def decode(enc):
     if not enc:
+        return 0
+    elif len(enc) == 1:
+        print(alphabet[enc[0]])
         return 1
-    
-    n_comb = 1
-    first = enc[0]
+    elif len(enc) == 2:
+        print(alphabet[enc[0]], alphabet[enc[1]])
+        second_variant = 10 * enc[0] + enc[1]
+        if second_variant <= 25:
+            print(alphabet[second_variant])
+            return 2
+        else:
+            return 1
+    else:
+        return decode(enc[:1]) + decode(enc[1:])
 
-    if len(enc) > 1:
-        second = enc[1] if len(enc) > 1 else 0
-        combined = 10*first + second
-        if first != 0 and combined < 26:
-            n_comb += 1
-
-    if len(enc) > 1:
-        n_comb += ways(enc[1:])
-    
-    return n_comb
-
+print ('n=', decode([1, 1, 1, 1]))
