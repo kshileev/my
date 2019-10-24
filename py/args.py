@@ -39,6 +39,14 @@ class TestParser(TestCase):
         args = simple.parse_args(['/etc/hosts', '/etc'])
         self.assertEqual('/etc/hosts', args.file.name)
         self.assertEqual('/etc', args.dir_path)
+        self.assertFalse(args.debug)
+        args.file.close()
+
+    def test_simple_debug(self):
+        args = simple.parse_args(['/etc/hosts', '/etc', '--debug'])
+        self.assertEqual('/etc/hosts', args.file.name)
+        self.assertEqual('/etc', args.dir_path)
+        self.assertTrue(args.debug)
         args.file.close()
 
 

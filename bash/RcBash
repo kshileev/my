@@ -580,7 +580,7 @@ function kk_deploy_key_pair()
 function kkssh()
 { # manipulate with ssh keys
     echo "operations with ssh, keys, certificates"
-    local ssh_command=${1:-$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')}
+    local ssh_command=${1:-$(_get_input 'add_kir_key erase_offending_key add_ossqe_key finger deploy_to self-signed-certificate')}
     case ${ssh_command} in
     deploy-to)
       local host=$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')
@@ -588,6 +588,10 @@ function kkssh()
     ;;
     add_kir_key)
       ssh-add ~/Google\ Drive/Kirill/Keys/KirVaio.private
+    ;;
+    erase_offending_key)
+      read -p "enter offending key: " offending_key
+      ssh-keygen -R $offending_key
     ;;
     add_ossqe_key)
       curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser

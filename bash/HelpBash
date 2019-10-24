@@ -105,33 +105,24 @@ function kkhelp-bash()
 function kkhelp-grep()
 {
     _section grep
-    echo 'find bar foe -name *.c['           # how to find all *.c and *. in ~ bar and foe dirs
-    echo 'grep -A 2 -B 3 -E "foo|bar"'		 # how to grep foo and bar and print 2 lines before and 3 lines after
+    echo 'find bar foe -name *.c[              # how to find all *.c and *. in ~ bar and foe dirs'
+    echo 'grep -A 2 -B 3 -E "foo|bar" file     # how to grep foo or bar and print 2 lines before and 3 lines after in file file'
+    echo 'grep -RE "foo|bar" dir --include pat # how to grep foo or bar recursevely in dir for files p'
 }
-function kkhelp() {
-    kkhelp-os
-    kkhelp-docker
-    kkhelp-bash
-    kkhelp-vim
-    kkhelp-grep
-
-    _section cscope
-    echo cscope -b -R          # build reference file
-    echo cscope -b -q -k       # used
-
-    _section diff
-    echo diff -pNU7 # p for function N
-
+function kkhelp-grub()
+{
     _section grub
     echo 'savedefault --default=1 --once | grub' #say grub to reboot once
     echo 'kernel XXXX ro root=LABEL=/ debug oops=panic panic=1 console=ttyS0,115200 console=tty > /boot/grub/menu.lst' #reboot if panic
-
-    _section kernel
-    echo 'syscall:	check include/asm/unistd.h for __NR_syscallname'
-
-    _section mount
-    echo mount -o rw,remount /dev/sda1
-
+}
+function kkhelp-cscope()
+{
+    _section cscope
+    echo cscope -b -R          # build reference file
+    echo cscope -b -q -k       # used
+}
+function kkhelp-rmp-dpkg()
+{
     _section packages
     echo 'list all packages  rpm -qa                   dpkg -l'
     echo 'list files         rpm -ql name              dpkg -L name'
@@ -142,14 +133,41 @@ function kkhelp() {
     echo 'verify package     rpm -V name               dpkg -V name'
     echo 'key install        rpm --import key'
     echo 'show key ring      rpm -qa gpg-pubkey*'
-
+}
+function kkhelp-kernel()
+{
+    _section kernel
+    echo 'syscall:	check include/asm/unistd.h for __NR_syscallname'
+}
+function kkhelp-mount()
+{
+    _section mount
+    echo mount -o rw,remount /dev/sda1
+}
+function kkhelp-ps()
+{
     _section ps
     echo ps -L -p pid # shows all threads for process
-
+}
+function kkhelp-diff()
+{
+    _section diff
+    echo diff -pNU7 # p for function N
+}
+function kkhelp-watch()
+{
     _section watch
     echo watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
 }
-function kkrus(){
+function kkhelp() {
+    local help_cmd=$(_get_input 'bash os ps grep rmp-dpkg cscope kernel mount')
+    case ${help_cmd} in
+         bash) kkhelp-bash ;;
+         os) kkhelp-os ;;
+         grep) kkhelp-grep ;;
+    esac
+}
+function kkhelp-rus(){
     cat  <<EOF
 Это русский текст в кодировке UTF8
 Ё!"№;%:?*()_+/
@@ -168,34 +186,33 @@ function kkrus(){
 ?1234567890-=\ /
 EOF
 }
-
-function kkmorze()
+function kkhelp-morze()
 {
 cat <<EOF
-01 Aa ._   alfa     А   01 А .-    ай-даа            A          alpha
-02 Bb -... bravo    Б   02 Б -...  баа-ки-те-кут     B          beta
-03 Cc -.-. charlie  Ц   03 В  .--  ви-даа-лаа        W          gamma
-04 Dd -..  delta    Д   04 Г  --.  гоо-воо-ри        G          delta
-05 Ee .    echo     Е   05 Д  -..  доо-ми-ки         D          epsilon
-06 Ff ..-. foxtrot  Ф   06 Е  .    есть              E          zeta
-07 Gg --.  golf     Г   07 Ё                                    eta
-08 Hh .... hotel    Х   08 Ж  ...- жи-ви-те-стоо     V          theta
-09 Ii ..   india    И   09 З  --.. заа-каа-ти-ки     Z          iota
-10 Jj .--- juliett  Й   10 И  ..   и-ди              I          kappa
-11 Kk -.-  kilo     К   11 Й  .--- ку-даа-поо-шлаа   J          lambda
-12 Ll .-.. lima     Л   12 К  -.-  каак-де-лаа       K          mu
-13 Mm --   mike     М   13 Л  .-.. лу-наа-ти-ки      L          nu
-14 Nn -.   november Н   14 М  --   маа-маа           M          xi
-15 Oo ---  oskar    О   15 Н  -.   ноо-мер           N          omicron
-16 Pp .--. papa     П   16 О  ---  оо-коо-лоо        O          pi
-17 Qq --.- quebec   Щ   17 П  .--. пи-лаа-поо-ёт     P          rho
-18 Rr .-.  romeo    Р   18 Р  .-.  ре-шаа-ет         R          sigma
-19 Ss ...  sierra   С   19 С  ...  са-мо-лёт         S          tau
-20 Tt -    tango    Т   20 Т  -    таак              T          upsilon
-21 Uu ..-  uniform  У   21 У  ..-  у-нес-лаа         U          fi
-22 Vv ...- victor   Ж   22 Ф  ..-. фи-ли-моон-чик    F          chi
-23 Ww .--  whiskey  В   23 Х  .... хи-ми-чи-те       H          psi
-24 Xx -..- x-ray    Ь   24 Ц  -.-. цаа-пли-цаа-пли   C          omega
+01 Aa ._   alfa     А   01 А .-    ай-даа            A    01      alpha
+02 Bb -... bravo    Б   02 Б -...  баа-ки-те-кут     B    02      beta
+03 Cc -.-. charlie  Ц   03 В  .--  ви-даа-лаа        W    03      gamma
+04 Dd -..  delta    Д   04 Г  --.  гоо-воо-ри        G    04      delta
+05 Ee .    echo     Е   05 Д  -..  доо-ми-ки         D    05      epsilon
+06 Ff ..-. foxtrot  Ф   06 Е  .    есть              E    06      zeta
+07 Gg --.  golf     Г   07 Ё                              07      eta
+08 Hh .... hotel    Х   08 Ж  ...- жи-ви-те-стоо     V    08      theta
+09 Ii ..   india    И   09 З  --.. заа-каа-ти-ки     Z    09      iota
+10 Jj .--- juliett  Й   10 И  ..   и-ди              I    10      kappa
+11 Kk -.-  kilo     К   11 Й  .--- ку-даа-поо-шлаа   J    11      lambda
+12 Ll .-.. lima     Л   12 К  -.-  каак-де-лаа       K    12      mu
+13 Mm --   mike     М   13 Л  .-.. лу-наа-ти-ки      L    13      nu
+14 Nn -.   november Н   14 М  --   маа-маа           M    14      xi
+15 Oo ---  oskar    О   15 Н  -.   ноо-мер           N    15      omicron
+16 Pp .--. papa     П   16 О  ---  оо-коо-лоо        O    16      pi
+17 Qq --.- quebec   Щ   17 П  .--. пи-лаа-поо-ёт     P    17      rho
+18 Rr .-.  romeo    Р   18 Р  .-.  ре-шаа-ет         R    18      sigma
+19 Ss ...  sierra   С   19 С  ...  са-мо-лёт         S    19      tau
+20 Tt -    tango    Т   20 Т  -    таак              T    20      upsilon
+21 Uu ..-  uniform  У   21 У  ..-  у-нес-лаа         U    21      fi
+22 Vv ...- victor   Ж   22 Ф  ..-. фи-ли-моон-чик    F    22      chi
+23 Ww .--  whiskey  В   23 Х  .... хи-ми-чи-те       H    23      psi
+24 Xx -..- x-ray    Ь   24 Ц  -.-. цаа-пли-цаа-пли   C    24      omega
 25 Yy -.-- yankee   Ы   25 Ч
 26 Zz --.. zulu     З   26 Ы  -.-- ыы-не-наа-доо     Y
                         27 Ш  ---- шаа-роо-ваа-рыы
