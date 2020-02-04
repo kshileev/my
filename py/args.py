@@ -32,7 +32,7 @@ simple.add_argument('--debug', action='store_true', help='is debug?')
 simple.add_argument('--ip', type=ip, help='ip address')
 simple.add_argument('dir_path', type=abs_dir_path, nargs='?', default='~', help='path to dir')  # optional single positional (? means 0 or 1), custom type, dest not allowed
 simple.add_argument('--pod', type=str, choices=['a', 'b', 'c'], nargs='+', required=False, help='list of strings')
-
+simple.add_argument('--is_tls', type=bool, help='bool flag')
 
 class TestParser(TestCase):
     def test_simple(self):
