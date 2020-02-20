@@ -1,0 +1,33 @@
+function kkafs()
+{
+	service openafs-server status
+	service openafs-client status
+	echo -e "\n\n**\t**\tSTATUS:\t**\t**\n"
+	echo ++++++++++++++++++++Server:
+	ls -F "/usr/afs/{etc,db,logs,local}*";	files='ThisCell CellServDB';	cat_files /usr/afs/etc ${files}
+					files='BosConfig';		cat_files /usr/afs/local ${files}
+	echo ++++++++++++++++++++Client:
+	ls -F /usr/vice/*; files='ThisCell CellServDB.local cacheinfo'; cat_files /usr/vice/etc ${files}
+
+	echo +++++++++++++++++++/vicepa:
+	ls -F /vicepa/
+
+	echo -e "**\t**\tFINISHED\t**\t**"
+	#echo BOS status:;	bos status localhost -localauth
+	#echo BOS users:;	bos listusers localhost -localauth
+	#echo BOS hosts:;	bos listhosts localhost -localauth
+	#echo BOS keys:;	bos listkeys localhost -localauth
+	echo asetkey:;		asetkey list
+	#echo VOS volumes:;	vos listvol localhost -localauth
+}
+function ksTailLogAfs
+{
+    cd /var/log
+    if ksCheckOs; then
+	tail -F daemon.log user.log autgh.log debug kern.log dmesg messages \
+	    kerveros/krb5kdc.log kerveros/kadmin.log kerveros/krb2lib.log \
+	    openafs/BosLog openafs/FileLog openafs/SalvageLog openafs/VLLog openafs/VolserLog
+    else
+	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log
+    fi
+}

@@ -1,0 +1,20 @@
+function ksOvzNewCt
+{
+  echo "OS templates, currently installed:"
+  vzpkg list
+  vzpkgls
+  local NumCt=$(ksGetInput 'How many CTs' '1')
+  local Ostmpl=$(ksGetInput 'Which OS template')
+  [ "$NumCt" == "1" ] && names="241"
+  [ "$NumCt" == "2" ] && names="241 242"
+  [ "$NumCt" == "3" ] && names="241 242 243"
+  [ "$NumCt" == "4" ] && names="241 242 243 244"
+  [ "$NumCt" == "5" ] && names="241 242 243 244 245"
+  for ctid in ${names}; do
+    cthn=k${ctid}.ct
+    ctip=10.0.15.${ctid}
+    vzctl create ${ctid} --ostemplate ${OsTmpl}
+    vzctl set ${ctid} --ipadd ${ctip} --hostname ${cthn} --userpasswd root:1q2w3e --save
+    vzctl start ${ctid}
+  done
+}

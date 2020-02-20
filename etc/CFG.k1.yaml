@@ -1,9 +1,0 @@
----
-
-testbed:
-  name: k1
-  servers:
-    build_node:
-      server: k1-entry-point
-      address: "2001:420:293:254b:10:23:230:228"
-      username: root

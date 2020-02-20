@@ -1,0 +1,93 @@
+function ksIntallKernel2Remote
+{
+    grep "Linux kernel release" README >/dev/null 2>&1
+    [ $? -ne 0 ] && echo You need to invoke this from head of kernel tree && return 1
+    echo Install new kernel
+    ls configs/
+    local Node=$(ksGetInput 'remote node name' 'tom')
+    PingNodeOrExit ${Node}
+    local Arch=$(_get_input 'x86_64 i386')
+    local Conf=$(_get_input '.config')
+    [ -z "$Conf" ] || cp configs/${Conf} .config
+    make ARCH=${Arch} nonint_oldconfig   ; [ "$?" != "0" ] && return 1
+    make ARCH=${Arch}                    ; [ "$?" != "0" ] && return 1
+
+    Release=$(make kernelversion)
+
+    Dir=$HOME/tmp ;    mkdir -p ${Dir} ;    mkdir -p ${Dir}/boot
+    INSTALL_MOD_PATH=${Dir} make modules_install
+                      cp arch/${Arch}/boot/bzImage  ${Dir}/boot/vmlinuz-${Release}
+                      cp System.map               ${Dir}/boot/System.map-${Release}
+    chmod -x vmlinux; cp vmlinux                  ${Dir}/boot/vmlinux-${Release}
+                      cp .config                  ${Dir}/boot/config-${Release}
+
+    Tarball=$HOME/tst-kernel-${Release}.tgz
+    cd ${Dir} ; tar czf ${Tarball} * ;  scp ${Tarball} root@${Node}:/ ;  rm -rf ${Dir} ${Tarball}
+}
+function kkinitrd
+{
+    echo Operations with INITRD:
+    echo 1. unzip into current dir
+    echo 2. zip current dir into ~/initrd-${USER}.img
+    # read -p gzip -dc | cpio -i > .
+    #find . | cpio -co --quiet | gzip -c > ~/initrd.img'
+    ls *initrd* /boot/initrd*
+    local IrdName=$(ksGetInput 'Choose initrd image:')
+    rm -rf $HOME/ird
+    mkdir -p $HOME/ird
+    cp ${IrdName} $HOME/ird/tmp-initrd
+    cd $HOME/ird
+    gzip -dc tmp-initrd | cpio -id
+    rm tmp-initrd
+}
+function kkgrub
+{
+    echo Configure grub to boot just once
+    echo "savedefault --default=0 --once" |grub
+}
+function ksBuildDisketteRouter
+{
+# Created 05.07.2003
+# Used materials:
+# Linux kernel doc ramdisk.txt usually found in /usr/src/linux/Documentation
+
+	Tar=`pwd`
+	Size=4096
+	Tmp=/mnt/router #where to create all the disket staff, currently directly on floppy disk
+	Device=/dev/ram
+
+	if [ ! -f ${Tar}/etc/rc.router ]; then
+		echo "No $Tar file"
+	exit -1
+	fi
+
+	echo "Coping linux kernel..."
+	dd if=/usr/src/linux/arch/i386/boot/bzImage of=/dev/fd0 bs=1k
+	echo "Force kernel to use diskette as root device"
+	rdev /dev/fd0 /dev/fd0
+	echo "Tell kernel where to find compressed ramdisk"
+	rdev -r /dev/fd0 16984
+
+	echo "Cleaning $Size kb of $Device..."
+	dd if=/dev/zero of=${Device} bs=1k count=${Size}
+
+	echo "Creating ram disk of $Size kb and mounting it in $Tmp..."
+	[ -d ${Tmp} ] || mkdir ${Tmp}
+	mke2fs -m0 ${Device} ${Size} >/dev/null 2>&1
+	mount ${Device} ${Tmp}
+
+	echo "Creating ramdisk structure in $Tmp..."
+	cd ${Tar}
+	cp -r * ${Tmp}
+
+	echo "Creating dev substructure in $Tmp..."
+	mknod ${Tmp}/dev/console c 5 1
+	#mknod $Tmp/dev/ramdisk b 1 0
+
+	echo "Unmounting and deleting $Tmp..."
+	umount ${Tmp}
+	rm -rf ${Tmp}
+
+	echo "Creating compressed ramdisk image on diskette from $Tmp..."
+	dd if=${Device} bs=1k | gzip -v9 | dd of=/dev/fd0 bs=1k seek=600
+}

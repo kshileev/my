@@ -4,8 +4,10 @@
 [ -z "PS1" ] && return					#nothing to do for non interactive shell
 PS1="\W> "	    #prompt: hostname:dirname>
 
-export MY_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
-export PATH="$MY_DIR:/usr/local/bin:/usr/bin:/bin:/sbin:/usr/sbin"
+
+export MY_BASH_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
+export MY=$(dirname $MY_BASH_DIR)
+echo $MY
 [[ -d $HOME/miniconda3 ]] && export PATH="$HOME/miniconda3/bin:$PATH"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
@@ -20,93 +22,16 @@ export LESSHISTFILE=${MY_TMP_DIR}/LessHist
 export HISTFILE=${MY_TMP_DIR}/BashHist
 export HISTSIZE=5000
 export HISTCONTROL=ignoreboth
-export X509_USER_CERT=${MY}/KirINFN.pem		#certificate used by globus
-export X509_USER_KEY=${MY}/KirPrivate.pem	#private key for this certificate
 export SIMPLE_BACKUP_SUFFIX=.${MY_USER}		#used by patch to store initial state of touched files
 export DISTCC_HOSTS='1.1.1.1 2.2.2.2 3.3.3.3'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=${MY_DIR}/RcAstyle
 export LD_LIBRARY_PATH=$HOME
 export ROOTGUI=native
 export TZ='Europe/Moscow'
-ColorNormal="\\033[0;39m"
-ColorBlack="\\033[0;30m";     ColorDarkGray="\\033[1;30m"
-ColorBlue="\\033[0;34m";      ColorLightBlue="\\033[1;34m"
-ColorGreen="\\033[0;32m";     ColorLightGreen="\\033[1;32m"
-ColorCyan="\\033[0;36m";      ColorLightCyan="\\033[1;36m"
-ColorRed="\\033[0;31m";       ColorLightRed="\\033[1;31m"
-ColorPurple="\\033[0;35m";    ColorLightPurple="\\033[1;35m"
-ColorBrown="\\033[0;33m";     ColorYellow="\\033[1;33m"
-ColorLightGray="\\033[0;37m"; ColorWhite="\\033[1;37m"
 
-setcolor_caption="echo -en \\033[1;34m"
-setcolor_success="echo -en \\033[1;32m"
-setcolor_failure="echo -en \\033[1;31m"
-setcolor_normal="echo -en \\033[0;39m"
+source ${MY_BASH_DIR}/RcHelpers
 
-_ecount=0
-function _e()
-{
-	_ecount=$((_ecount+1))
-	${setcolor_caption}
-	echo -n "Phase #$_ecount: $*..."
-	${setcolor_normal}
-	echo
-}
-function _eok()
-{
-	${setcolor_success}
-	echo -n "DONE"
-	${setcolor_normal}
-	echo
-}
-function _enok()
-{
-	${setcolor_failure}
-	echo -n "FAILED"
-	${setcolor_normal}
-	echo
-}
-function _section()
-{
-    printf "\n%-10s %0100s\n" $1
-}
-function _get_input()
-{
-    local commands=$1
-    local command=$2
-    [[ -n ${command} ]] && [[ ${commands} == *${command}* ]] && echo ${command} && return
-    local default_command=$(echo ${commands} | cut -d ' ' -f1)
-    local input
-    read -p "choose from ${commands} [default=${default_command}]: " input
-    [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
-    echo ${input:-${default_command}}
-}
-function kkinput()
-{
-    local cmd=$*
-    local options=`$cmd`
-    local default=`echo $options | cut -d " " -f1`
-    local input
-    read -p "choose from ${options} [default=${default}]: " input
-    [[ ${options} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
-    echo ${input:-${default}}
-}
-function ksAddLineToFileIfNotThere()
-{
-    local line=$1
-    local file=$2
-    echo $line
-    [ -f ${file} ] || touch ${file}
-    grep "${line}" ${file} || echo ${line} >> ${file}
-}
-function ksGetInput()
-{
-    local text=$1
-    local default=$2
-    local input
-    read -p "${text} [default=${default}]: " input
-    echo ${input:-${default}}
-}
+
 function kkelk()
 {
     local cmd=$(_get_input 'index indexR docker')
@@ -149,50 +74,6 @@ function kkrepo()
 	ovzkernel) git clone  git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
 	my) git clone git@github.com:kshileev/my.git ;;
     esac
-}
-function kkinitrd
-{
-    echo Operations with INITRD:
-    echo 1. unzip into current dir
-    echo 2. zip current dir into ~/initrd-${USER}.img
-    # read -p gzip -dc | cpio -i > .
-    #find . | cpio -co --quiet | gzip -c > ~/initrd.img'
-    ls *initrd* /boot/initrd*
-    local IrdName=$(ksGetInput 'Choose initrd image:')
-    rm -rf $HOME/ird
-    mkdir -p $HOME/ird
-    cp ${IrdName} $HOME/ird/tmp-initrd
-    cd $HOME/ird
-    gzip -dc tmp-initrd | cpio -id
-    rm tmp-initrd
-}
-function kkgrub
-{
-    echo Configure grub to boot just once
-    echo "savedefault --default=0 --once" |grub
-}
-function kkscope
-{
-    local what=$(_get_input 'devstack c-proj')
-    echo Preparing CSCOPE to browse in $PWD
-    mkdir -p ${MY_CSCOPE_DIR}
-    case ${what} in
-	devstack) find ${PWD} -name stack.sh -o -name functions -o -name neutron > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q && cd -
-	    ;;
-	c-proj)   find ${PWD} -name "*.[ch]" -o -name "*.[ch]pp" | grep -v ut/ | grep -v utils/ > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q -k && cd -
-	    cscope -b -q -k
-	    ;;
-    esac
-}
-function kkdiff()
-{
-    local diff_name=~/kshileev.diff.`date +%Y%m%d`
-    local origs=`find . -name "*.kshileev"`
-    rm -f $diff_name
-    for orig in $origs ; do
-        diff -uN $orig ${orig%.kshileev} >> $diff_name
-    done
-    echo see $diff_name
 }
 function kkalias()
 {
@@ -250,112 +131,6 @@ function kkgrep
     [ -z "$1" ] && echo Usage $FUNCNAME symbol || echo $1 a\is in :
     find . -name *.[ch]pp | xargs grep $1
 }
-function kksizeof
-{
-	if [ "$#" == "0" ]; then
-		echo Usage: $0 c1i1
-		return
-	fi
-
-	for c in $1 ;  do
-		echo ${c}
-	done
-
-	Class="class Class{char c; int i;};" #
-
-	local TmpCode=$(mktemp -u).c++ #tmp file of type /tmp/tmp.XXXXXXXX.c++ -u: don't create it (unsafe)
-	local TmpBin=${TmpCode/c++/exe}
-
-	cat > ${TmpCode} <<EOF
-#include <iostream>
-using namespace std;
-
-${Class}
-
-int main()
-{
-	Class obj;
-	cout<<"${Class} CLS="<<sizeof(Class)<<" obj="<<sizeof(obj)<<endl;
-	return 0;
-}
-EOF
-
-	g++ ${TmpCode} -o ${TmpBin}
-	echo Platform `uname -m`
-	${TmpBin}
-	rm ${TmpCode} ${TmpBin}
-}
-function ksDhcpd
-{
-	[ -f /etc/dhcpd.conf ] && ConfFile=/etc/dhcpd.conf
-	cat > ${ConfFile} << EOF
-authoritative;
-option domain-name "barracuda";
-option domain-name-servers 192.168.4.1;
-
-subnet 10.0.0.0 netmask 255.255.255.0 {
-  option routers  10.0.0.1;
-
-  pool {
-    range dynamic-bootp  10.0.0.20 10.0.0.250;
-    default-lease-time 86400;
-    max-lease-time 86400;
-  }
-
-  next-server 10.0.0.10;
-  filename "pxelinux.0";
-}
-EOF
-}
-function kkclass
-{
-    local Class=$(ksGetInput 'Class name' 'KirClass')
-    local Base=$(ksGetInput 'Base name' 'KirBase')
-    local Ext=$(ksGetInput 'C++ extention' '.c++')
-    File=${Class}${Ext}
-    Header=${Class}.h
-
-    cat > ${Header} <<EOF
-#ifndef ${Class}_h"
-#define ${Class}_h"
-
-#include <$Base.h>
-
-class ${Class} : public ${Base}
-{
-public:
-    ${Class}();
-   ~${Class}();
-protected:
-  ClassDef(${Class},0)
-};//class ${Class}
-#endif//${Class}_h
-EOF
-
-	cat > ${File} << EOF
-#include \"$Header\""             >>$File;                       echo >>$File
-ClassImp(${Class})"                 >>${File};                       echo >>${File}
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" >>${File}
-${Class}::${Class}()"                 >>${File}
-{//ctor
-  PrintDebugStart(\"ctor\");"     >>${File}
-  PrintDebugStop(\"ctor\");"      >>${File}
-  return;"                        >>${File}
-}
-//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-${Class}::~${Class}()
-{//dtor
-  PrintDebugStart("dtor");
-  PrintDebugStop("dtor");
-  return;
-}
-EOF
-}
-function PingNode
-{
-   ping -c 1 $1 > /dev/null 2>&1
-   [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
-}
 function kkinit()
 {
     local my_env_command=$(_get_input 'local remote update' $1)
@@ -376,59 +151,14 @@ function kkinit()
 	;;
     esac
 }
-function ksCheckOs
+function kksystem
 { # we're running on deb based or rpm based OS?
   local deb=/etc/debian_version
   local rpm=/etc/redhat-release
   [ -f ${deb} ] && { echo -n "It's DEBIAN version: " ; cat ${deb}; return 1; }
   [ -f ${rpm} ] && { echo -n "It's RPM version: "    ; cat ${rpm}; return -1; }
 }
-function ksBuildDisketteRouter
-{
-# Created 05.07.2003
-# Used materials:
-# Linux kernel doc ramdisk.txt usually found in /usr/src/linux/Documentation
 
-	Tar=`pwd`
-	Size=4096
-	Tmp=/mnt/router #where to create all the disket staff, currently directly on floppy disk
-	Device=/dev/ram
-
-	if [ ! -f ${Tar}/etc/rc.router ]; then
-		echo "No $Tar file"
-	exit -1
-	fi
-
-	echo "Coping linux kernel..."
-	dd if=/usr/src/linux/arch/i386/boot/bzImage of=/dev/fd0 bs=1k
-	echo "Force kernel to use diskette as root device"
-	rdev /dev/fd0 /dev/fd0
-	echo "Tell kernel where to find compressed ramdisk"
-	rdev -r /dev/fd0 16984
-
-	echo "Cleaning $Size kb of $Device..."
-	dd if=/dev/zero of=${Device} bs=1k count=${Size}
-
-	echo "Creating ram disk of $Size kb and mounting it in $Tmp..."
-	[ -d ${Tmp} ] || mkdir ${Tmp}
-	mke2fs -m0 ${Device} ${Size} >/dev/null 2>&1
-	mount ${Device} ${Tmp}
-
-	echo "Creating ramdisk structure in $Tmp..."
-	cd ${Tar}
-	cp -r * ${Tmp}
-
-	echo "Creating dev substructure in $Tmp..."
-	mknod ${Tmp}/dev/console c 5 1
-	#mknod $Tmp/dev/ramdisk b 1 0
-
-	echo "Unmounting and deleting $Tmp..."
-	umount ${Tmp}
-	rm -rf ${Tmp}
-
-	echo "Creating compressed ramdisk image on diskette from $Tmp..."
-	dd if=${Device} bs=1k | gzip -v9 | dd of=/dev/fd0 bs=1k seek=600
-}
 function cat_files()
 {
 	local dir=$1
@@ -439,91 +169,12 @@ function cat_files()
 		echo -e "<----\tend\t----"
 	done
 }
-function kkafs()
-{
-	service openafs-server status
-	service openafs-client status
-	echo -e "\n\n**\t**\tSTATUS:\t**\t**\n"
-	echo ++++++++++++++++++++Server:
-	ls -F "/usr/afs/{etc,db,logs,local}*";	files='ThisCell CellServDB';	cat_files /usr/afs/etc ${files}
-					files='BosConfig';		cat_files /usr/afs/local ${files}
-	echo ++++++++++++++++++++Client:
-	ls -F /usr/vice/*; files='ThisCell CellServDB.local cacheinfo'; cat_files /usr/vice/etc ${files}
-
-	echo +++++++++++++++++++/vicepa:
-	ls -F /vicepa/
-
-	echo -e "**\t**\tFINISHED\t**\t**"
-	#echo BOS status:;	bos status localhost -localauth
-	#echo BOS users:;	bos listusers localhost -localauth
-	#echo BOS hosts:;	bos listhosts localhost -localauth
-	#echo BOS keys:;	bos listkeys localhost -localauth
-	echo asetkey:;		asetkey list
-	#echo VOS volumes:;	vos listvol localhost -localauth
-}
 function PingNodeOrExit()
 {
    ping -c 1 $1 > /dev/null 2>&1
    [ "$?" == "0" ] || { echo Node \"$1\" is off, aborting...; exit 1; }
 }
-function ksIntallKernel2Remote
-{
-    grep "Linux kernel release" README >/dev/null 2>&1
-    [ $? -ne 0 ] && echo You need to invoke this from head of kernel tree && return 1
-    echo Install new kernel
-    ls configs/
-    local Node=$(ksGetInput 'remote node name' 'tom')
-    PingNodeOrExit ${Node}
-    local Arch=$(_get_input 'x86_64 i386')
-    local Conf=$(_get_input '.config')
-    [ -z "$Conf" ] || cp configs/${Conf} .config
-    make ARCH=${Arch} nonint_oldconfig   ; [ "$?" != "0" ] && return 1
-    make ARCH=${Arch}                    ; [ "$?" != "0" ] && return 1
 
-    Release=$(make kernelversion)
-
-    Dir=$HOME/tmp ;    mkdir -p ${Dir} ;    mkdir -p ${Dir}/boot
-    INSTALL_MOD_PATH=${Dir} make modules_install
-                      cp arch/${Arch}/boot/bzImage  ${Dir}/boot/vmlinuz-${Release}
-                      cp System.map               ${Dir}/boot/System.map-${Release}
-    chmod -x vmlinux; cp vmlinux                  ${Dir}/boot/vmlinux-${Release}
-                      cp .config                  ${Dir}/boot/config-${Release}
-
-    Tarball=$HOME/tst-kernel-${Release}.tgz
-    cd ${Dir} ; tar czf ${Tarball} * ;  scp ${Tarball} root@${Node}:/ ;  rm -rf ${Dir} ${Tarball}
-}
-
-function ksOvzNewCt
-{
-  echo "OS templates, currently installed:"
-  vzpkg list
-  vzpkgls
-  local NumCt=$(ksGetInput 'How many CTs' '1')
-  local Ostmpl=$(ksGetInput 'Which OS template')
-  [ "$NumCt" == "1" ] && names="241"
-  [ "$NumCt" == "2" ] && names="241 242"
-  [ "$NumCt" == "3" ] && names="241 242 243"
-  [ "$NumCt" == "4" ] && names="241 242 243 244"
-  [ "$NumCt" == "5" ] && names="241 242 243 244 245"
-  for ctid in ${names}; do
-    cthn=k${ctid}.ct
-    ctip=10.0.15.${ctid}
-    vzctl create ${ctid} --ostemplate ${OsTmpl}
-    vzctl set ${ctid} --ipadd ${ctip} --hostname ${cthn} --userpasswd root:1q2w3e --save
-    vzctl start ${ctid}
-  done
-}
-function ksTailLogAfs
-{
-    cd /var/log
-    if ksCheckOs; then
-	tail -F daemon.log user.log autgh.log debug kern.log dmesg messages \
-	    kerveros/krb5kdc.log kerveros/kadmin.log kerveros/krb2lib.log \
-	    openafs/BosLog openafs/FileLog openafs/SalvageLog openafs/VLLog openafs/VolserLog
-    else
-	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log	
-    fi
-}
 function kkntp
 {
     echo Creating ntp config in /etc/ntp.conf
@@ -543,78 +194,6 @@ includefile /etc/ntp/crypto/pw
 keys /etc/ntp/keys
 EOF
 }
-function kk_deploy_key_pair()
-{ # Check that ssh private-public is indeed a pair and deploy them to the given server
-    local what_to_deploy=$1
-    local private=$2
-    local server=$3
-    local user=$4
-    local password=$5
-
-    if [[ ${what_to_deploy} == "-h" ]]; then
-	echo "Usage: $0 [public|private] priv_key_path host user password"
-	return
-    fi
-    [[ -z ${what_to_deploy} ]] && what_to_deploy=public
-    [[ -z ${private} ]] && private=${MY_DIR}/keys/kir_no_secret
-    [[ -z ${server} ]] && server=localhost
-    [[ -z ${user} ]] && user=localadmin
-    [[ -z ${password} ]] && password=ubuntu
-
-    local public=${private}.pub
-    local fingerprint=$(ssh-keygen -lf ${private})
-    local public_value=$(cat ${public})
-    local private_value=$(cat ${private})
-    local public_value_from_private=$(ssh-keygen -yf ${private})
-
-    if [[ ${public_value} = ${public_value_from_private}* ]]; then
-	echo "${public} -> ${fingerprint}"
-	case ${what_to_deploy} in
-	    private) sshpass -p ${password} scp ${private} ${user}@${server}:~/.ssh/id_rsa;;
-	    public) sshpass -p ${password} ssh ${user}@${server} echo ${public_value} >> ~/.ssh/authorized_keys;;
-	esac
-    else
-	echo "${private} and ${public} are not a match!"
-    fi
-}
-function kkssh()
-{ # manipulate with ssh keys
-    echo "operations with ssh, keys, certificates"
-    local ssh_command=${1:-$(_get_input 'add_kir_key erase_offending_key add_ossqe_key finger deploy_to self-signed-certificate')}
-    case ${ssh_command} in
-    deploy-to)
-      local host=$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')
-      ssh-copy-id $host
-    ;;
-    add_kir_key)
-      ssh-add ~/Google\ Drive/Kirill/Keys/KirVaio.private
-    ;;
-    erase_offending_key)
-      read -p "enter offending key: " offending_key
-      ssh-keygen -R $offending_key
-    ;;
-    add_ossqe_key)
-      curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
-    ;;
-    pair-cert)
-	echo Operations with p12 and pem public-private pairs
-        ls ${MY}/keys/* ${HOME}/.ssh/*
-	local Public=$(ksGetInput 'Public  key'); [[ -z $Public ]] && return
-	local Private=$(ksGetInput 'Private  key'); [[ -z $Private ]] && return
-
-        local out1=$(openssl rsa -in ${Private} -noout -modulus)
-        local out2=$(openssl x509 -in ${Public} -noout -modulus)
-        echo ${Public} and ${Private}
-        [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
-    ;;
-    finger)
-      ssh-add -l -E md5
-    ;;
-    self-signed-certificate)
-      openssl req -x509 -newkey rsa:4096 -keyout KirSelfSignedCertKey.pem -out KirSelfSignedCert.pem -days 365
-    ;;
-    esac
-}
 function kkps()
 {
     local name=$1
@@ -630,27 +209,15 @@ function kkvenv()
     . ${dir}/bin/activate
     pip install -r requirements.txt
 }
-function ksKloudBuster()
-{
-    ls ~
-    local cloud_rc=$(ksGetInput 'Choose cloud'); [[ -z $cloud_rc ]] && return
-    cd ~/os/kloud/kloudbuster
-    python kloudbuster.py --tested-rc ~/${cloud_rc} --tested-passwd admin --json ~/kloud.json
-    python kb_gen_chart.py -c ~/kloud.html ~/kloud.json
-    rm -f ~/kloud.json
-}
-function kklog()
-{
-    local log_file=$1
-    local log_regex=$2
-    local minutes=$3
-    sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
-}
+
+[[ -f /etc/bash_completion ]] && . /etc/bash_completion
+source ${MY_BASH_DIR}/RcMercury
+source ${MY_BASH_DIR}/RcNet
+source ${MY_BASH_DIR}/RcVirsh
+source ${MY_BASH_DIR}/RcOpenstack
+source ${MY_BASH_DIR}/HelpBash
+source ${MY_BASH_DIR}/RcSsh
+source ${MY_BASH_DIR}/RcKernel
+source ${MY_BASH_DIR}/RcAfs
 
 kkalias
-[[ -f /etc/bash_completion ]] && . /etc/bash_completion
-source ${MY_DIR}/RcMercury
-source ${MY_DIR}/RcNet
-source ${MY_DIR}/RcVirsh
-source ${MY_DIR}/RcOpenstack
-source ${MY_DIR}/HelpBash

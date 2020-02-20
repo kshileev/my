@@ -1,3 +1,28 @@
+function kkos_list_nodes()
+{
+    nodes=$(openstack host list | grep -E "scheduler|compute" | cut -d "|" -f2)
+}
+function kkos_collect_logs()
+{
+    local title=$1
+    local log_dir=~/logs/$title
+    local node_log_dir
+
+    [[ -d $log_dir ]] && return
+    ossqe_timestamp
+    ossqe_list_nodes
+    for node in $nodes
+    do
+        node_log_dir=$last_log_dir/$node
+        mkdir -p $node_log_dir
+        $scp_cmd $node:/var/log/{nova/*,neutron-vpp/*,neutron/*}.log $node_log_dir
+    done
+}
+function kkos_problem()
+{
+    local os_obj=$1
+    openstack
+}
 function kkos()
 {
     echo "Handle OpenStack"

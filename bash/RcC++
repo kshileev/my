@@ -1,0 +1,102 @@
+function kkscope
+{
+    local what=$(_get_input 'devstack c-proj')
+    echo Preparing CSCOPE to browse in $PWD
+    mkdir -p ${MY_CSCOPE_DIR}
+    case ${what} in
+	devstack) find ${PWD} -name stack.sh -o -name functions -o -name neutron > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q && cd -
+	    ;;
+	c-proj)   find ${PWD} -name "*.[ch]" -o -name "*.[ch]pp" | grep -v ut/ | grep -v utils/ > ${MY_CSCOPE_FILE_LIST} && cd ${MY_CSCOPE_DIR} && cscope -b -q -k && cd -
+	    cscope -b -q -k
+	    ;;
+    esac
+}
+function kkdiff
+{
+    local diff_name=~/kshileev.diff.`date +%Y%m%d`
+    local origs=`find . -name "*.kshileev"`
+    rm -f $diff_name
+    for orig in $origs ; do
+        diff -uN $orig ${orig%.kshileev} >> $diff_name
+    done
+    echo see $diff_name
+}
+function kksizeof
+{
+	if [ "$#" == "0" ]; then
+		echo Usage: $0 c1i1
+		return
+	fi
+
+	for c in $1 ;  do
+		echo ${c}
+	done
+
+	Class="class Class{char c; int i;};" #
+
+	local TmpCode=$(mktemp -u).c++ #tmp file of type /tmp/tmp.XXXXXXXX.c++ -u: don't create it (unsafe)
+	local TmpBin=${TmpCode/c++/exe}
+
+	cat > ${TmpCode} <<EOF
+#include <iostream>
+using namespace std;
+
+${Class}
+
+int main()
+{
+	Class obj;
+	cout<<"${Class} CLS="<<sizeof(Class)<<" obj="<<sizeof(obj)<<endl;
+	return 0;
+}
+EOF
+
+	g++ ${TmpCode} -o ${TmpBin}
+	echo Platform `uname -m`
+	${TmpBin}
+	rm ${TmpCode} ${TmpBin}
+}
+function kkclass
+{
+    local Class=$(ksGetInput 'Class name' 'KirClass')
+    local Base=$(ksGetInput 'Base name' 'KirBase')
+    local Ext=$(ksGetInput 'C++ extention' '.c++')
+    File=${Class}${Ext}
+    Header=${Class}.h
+
+    cat > ${Header} <<EOF
+#ifndef ${Class}_h"
+#define ${Class}_h"
+
+#include <$Base.h>
+
+class ${Class} : public ${Base}
+{
+public:
+    ${Class}();
+   ~${Class}();
+protected:
+  ClassDef(${Class},0)
+};//class ${Class}
+#endif//${Class}_h
+EOF
+
+	cat > ${File} << EOF
+#include \"$Header\""             >>$File;                       echo >>$File
+ClassImp(${Class})"                 >>${File};                       echo >>${File}
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" >>${File}
+${Class}::${Class}()"                 >>${File}
+{//ctor
+  PrintDebugStart(\"ctor\");"     >>${File}
+  PrintDebugStop(\"ctor\");"      >>${File}
+  return;"                        >>${File}
+}
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+${Class}::~${Class}()
+{//dtor
+  PrintDebugStart("dtor");
+  PrintDebugStop("dtor");
+  return;
+}
+EOF
+}
