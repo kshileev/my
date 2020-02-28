@@ -20,10 +20,13 @@ def execute(ip, uname, passwd, commands, proxy_ip):
     shell.sendall(commands + '\n')
 
     a = b''
-    while True:  # first wait for mgm root prompt
+    n_no_new = 0
+    while True:
         if shell.recv_ready():
             a += shell.recv(1024)
-        if a.endswith(b' # '):
+        else:
+            n_no_new += 1
+        if n_no_new > 5:
             break
         time.sleep(1)
     remote.close()

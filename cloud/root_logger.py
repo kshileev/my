@@ -1,4 +1,4 @@
-def create_root_logger(name):
+def create_base_logger(name):
     import logging
     import os
 
@@ -21,14 +21,14 @@ def create_root_logger(name):
     logger.info('main pod logger created')
 
 
-def create_node_logger(name):
+def create_component_logger(name):
     import logging
 
     root_logger_name  = name.split('.')[0]
 
     root_logger = logging.getLogger(root_logger_name)
     if not root_logger.handlers:
-        create_root_logger(root_logger_name)
+        create_base_logger(root_logger_name)
     logger = logging.getLogger(name)
-    logger.info('node logger created')
+    logger.info('logger created')
     return logger

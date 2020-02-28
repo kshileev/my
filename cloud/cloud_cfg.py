@@ -42,25 +42,3 @@ class CloudCfg(object):
         ans = self.proxy_server.exe_cmds(cmds='find . -name openrc -exec grep export {} +')
         self.auth = OpenstackAuth(body=ans)
         return OpenstackClient(cfg=self)
-
-    def create_logger(self):
-        import logging
-        import os
-    
-        logger = logging.getLogger(self.cloud_name)
-        logger.setLevel(logging.DEBUG)
-        stream_handler_candidates = [x for x in logger.handlers if type(x) == logging.StreamHandler]
-        file_handler_candidates = [x for x in logger.handlers if type(x) == logging.FileHandler]
-        formatter = logging.Formatter(fmt='{name}: {message}', style='{')
-        if len(stream_handler_candidates) == 0:
-            st_hdl = logging.StreamHandler()
-            st_hdl.setLevel(logging.DEBUG)
-            st_hdl.setFormatter(fmt=formatter)
-            logger.addHandler(st_hdl)
-        if len(file_handler_candidates) == 0:
-            os.system('mkdir -p artifacts')
-            file_hdl = (logging.FileHandler(filename=os.path.join('artifacts', self.cloud_name + '_debug.log'), mode='w'))
-            file_hdl.setLevel(logging.DEBUG)
-            file_hdl.setFormatter(fmt=formatter)
-            logger.addHandler(file_hdl)
-        return logger

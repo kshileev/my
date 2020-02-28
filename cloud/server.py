@@ -1,58 +1,49 @@
 class ServerCfg(object):
-    def __init__(self, name, ip, uname, passwd, proxy=None):
-        self.name = name
-        self.ip = ip
-        self.uname = uname
-        self.passwd = passwd
-        self.proxy = proxy
+    def __init__(self, name, ip, uname, passwd):
+        from cloud.root_logger import create_component_logger
 
-    def create_server(self):
-        return Server(cfg=self)
+        self.name, self.ip, self.uname, self.passwd = name, ip, uname, passwd
+        self.logger = create_component_logger(name=self.name)
+
+    def create_server(self, proxy=None):
+        return Server(cfg=self, proxy=proxy)
+
+    def __repr__(self):
+        return self.name
 
 
 class Server(object):
-    def __init__(self, cfg):
-        from cloud.root_logger import create_node_logger
-        self.cfg = cfg
+    def __init__(self, cfg, proxy=None):
+        self.cfg, self.proxy = cfg, proxy
 
-        self._sshcon = None
-        self.logger = create_node_logger(name=self.cfg.name)
+        self._ssh_client = None
 
     def __repr__(self):
-        return f'{self.cfg.name}: (sshpass -p {self.cfg.passwd} ssh {self.cfg.uname}@{self.cfg.ip}'
+        add = f' -J {self.proxy.cfg.uname}@{self.proxy.cfg.name} '.replace('.', '.ssh.') if self.proxy else ' '
+        return f'{self.cfg.name}: ( sshpass -p {self.cfg.passwd} ssh{add}{self.cfg.uname}@{self.cfg.ip} )'
 
-    @property
-    def pkey(self):
-        import os
+    def ssh_client(self):
         import paramiko
 
-        if self._pkey is None:
-            repo_dir = os.path.dirname(os.path.dirname(__file__))
-            key_path = os.path.join(repo_dir, 'etc', 'keys', 'kir_no_secret')
-            self._pkey = paramiko.RSAKey.from_private_key_file(key_path)
-        return self._pkey
-
-    @property
-    def sshcon(self):
-        import paramiko
-
-        if self._sshcon is None:
-            self._sshcon = paramiko.SSHClient()
-            self._sshcon.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-        if self._sshcon.get_transport() is None or not self._sshcon.get_transport().is_active():
+        if self._ssh_client is None:
+            self._ssh_client = paramiko.SSHClient()
+            self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             try:
-                if self.cfg.passwd:
-                    self._sshcon.connect(hostname=str(self.cfg.ip), username=self.cfg.uname, password=self.cfg.passwd, timeout=5, look_for_keys=False)
+                if self.proxy:
+                    proxy_sock = self.proxy.ssh_client().get_transport().open_channel('direct-tcpip', (self.cfg.ip, 22), ('127.0.0.1', 10022))
+                    self._ssh_client.connect(hostname=str(self.cfg.ip), username=self.cfg.uname, password=self.cfg.passwd, timeout=15, sock=proxy_sock)
+                    self.cfg.logger.debug(f'connected via {self.proxy.cfg.name}')
                 else:
-                    self._sshcon.connect(hostname=str(self.cfg.ip), username=self.cfg.uname, pkey=self.pkey, timeout=5, look_for_keys=False)
-                self.logger.debug('connected')
+                    self._ssh_client.connect(hostname=str(self.cfg.ip), username=self.cfg.uname, password=self.cfg.passwd, timeout=15)
+                    self.cfg.logger.debug('connected')
             except Exception as ex:
-                self.logger.error('{}: fail to connect {}'.format(self, ex))
+                self.cfg.logger.error('{}: fail to connect {}'.format(self, ex))
                 raise RuntimeError(ex)
-        return self._sshcon
+        return self._ssh_client
 
     def exe_cmds(self, cmds, is_with_tty=False, is_in_background=False):
+        import time
+
         if type(cmds) is not list:
             cmds = [cmds]
         sep = ' ; echo ++ ; '
@@ -62,37 +53,49 @@ class Server(object):
         else:
             paths = []
         cmd = sep.join(cmds)
-        if hasattr(self, 'via_host'):
-            sshcon = self.via_host.sshcon
-            cmd = f'ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null {self.os_id} ' + cmd
-        else:
-            sshcon = self.sshcon
+        ssh = self.ssh_client()
 
         try:
-            self.logger.debug(f'{cmd} .......')
-            stdin, stdout, stderr = sshcon.exec_command(cmd, get_pty=is_with_tty)
-            err = stderr.read().decode('utf-8')
-            err = err.split('Warning: Permanently added')[0]  # suppress Warning
-            err = err.split('/etc/profile.d/autologout.sh: line 1: TMOUT: readonly variable\n')[-1]  # suppress
-            out = stdout.read().decode('utf-8')
-            outputs = []
-            for c, o in zip(cmds, (out + err).split('++')):
-                o = o.strip('\n')
-                self.logger.debug(f'{c} >>>>>>>\n\n\n{o or "no output"}\n\n\n++++++++++++ end of output +++++++++++++++++')
-                outputs.append(o)
-            if is_in_background:
-                outputs = [x[0] if x[0] else x[1] for x in zip(outputs, paths)]
+            self.cfg.logger.debug(f'{cmd} .......')
+            if hasattr(self, 'is_via_shell'):
+                shell = ssh.invoke_shell(width=1024, height=600)
+                shell.sendall('\n'.join(cmds) + '\n')
 
-            if is_in_background:
-                return paths[0] if len(paths) == 1 else paths
+                a = b''
+                n_waits_for_finish = 0
+                while True:
+                    if shell.recv_ready():
+                        a += shell.recv(1024)
+                        n_waits_for_finish = 0
+                    if n_waits_for_finish == 5:  # consider command finished after 5 times with no bytes received
+                        break
+                    time.sleep(1)
+                    n_waits_for_finish += 1
+                out = a.decode('utf-8')
+                self.cfg.logger.debug(f'{cmd} >>>>>>>\n\n\n{out or "no output"}\n\n\n++++++++++++ end of output +++++++++++++++++')
+                return out
             else:
-                return outputs[0] if len(outputs) == 1 else outputs
+                stdin, stdout, stderr = ssh.exec_command(cmd, get_pty=is_with_tty)
+                err = stderr.read().decode('utf-8')
+                err = err.split('Warning: Permanently added')[0]  # suppress Warning
+                err = err.split('/etc/profile.d/autologout.sh: line 1: TMOUT: readonly variable\n')[-1]  # suppress
+                out = stdout.read().decode('utf-8')
+                outputs = []
+                for c, o in zip(cmds, (out + err).split('++')):
+                    o = o.strip('\n')
+                    self.cfg.logger.debug(f'{c} >>>>>>>\n\n\n{o or "no output"}\n\n\n++++++++++++ end of output +++++++++++++++++')
+                    outputs.append(o)
+                if is_in_background:
+                    outputs = [x[0] if x[0] else x[1] for x in zip(outputs, paths)]
+
+                if is_in_background:
+                    return paths[0] if len(paths) == 1 else paths
+                else:
+                    return outputs[0] if len(outputs) == 1 else outputs
         except Exception as ex:
-            self.logger.error(f'in Server.exe_cmds {cmd} except: {ex}')
+            self.cfg.logger.error(f'in Server.exe_cmds {cmd} except: {ex}')
             raise RuntimeError(str(ex))
 
-    def close(self):
-        self.sshcon.close()
 
 class ServerNic(object):
     def __init__(self, server, nic_id, mac):
