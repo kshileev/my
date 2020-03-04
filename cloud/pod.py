@@ -9,15 +9,20 @@ class PodCfg:
     def __repr__(self):
         return f'{self.name} CFG'
 
-    def mgm_cfg(self):
+    def mgm(self):
         from cloud.server import ServerCfg
 
         return ServerCfg(name=f'{self.name}.mgm', ip=self.cfg_d['mgm']['ip6'], uname=self.cfg_d['mgm']['uname'], passwd=self.cfg_d['mgm']['passwd'])
 
-    def cimcs_cfg(self):
+    def cimcs(self):
         from cloud.cimc import CimcsCfg
 
         return CimcsCfg(pod_cfg=self)
+
+    def os(self):
+        from cloud.os_cfg import OsCfg
+
+        return OsCfg(pod_cfg=self)
 
     @classmethod
     def from_yaml_file(cls, stream):
@@ -25,7 +30,7 @@ class PodCfg:
         import os
 
         cfg_d = yaml.safe_load(stream)
-        pod_name = os.path.basename(stream.name).replace('.spec', '')
+        pod_name = os.path.basename(stream.name).replace('.spec', '').replace('.yaml', '').replace('CFG.', '')
         return cls(name=pod_name, cfg_d=cfg_d)
 
     def create_pod(self):
@@ -35,5 +40,6 @@ class PodCfg:
 class Pod:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.mgm = self.cfg.mgm_cfg().create_server()
-        self.cimcs = self.cfg.cimcs_cfg().create_them()
+        self.mgm = self.cfg.mgm().create_server()
+        self.cimcs = self.cfg.cimcs().create_them() if 'cimcs' in self.cfg.cfg_d else None
+        self.os = self.cfg.os().create_os_client(proxy=self.mgm)

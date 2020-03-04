@@ -10,7 +10,7 @@ class CimcNicPhysical:
         self.real_speed = lst[5]
 
     def __repr__(self):
-        return self.id
+        return f'{self.id} {self.status}'
 
 
 class CimcNicVirtual:
@@ -57,6 +57,14 @@ class CimcInfo:
     @property
     def power(self):
         return self.d['cimc']['Power']
+
+    @property
+    def physical(self):
+        return self.d['nics'][:2]
+
+    @property
+    def virtual(self):
+        return self.d['nics'][3]
 
 
 class CimcCfg(server.ServerCfg):
