@@ -37,8 +37,8 @@ class Server(object):
                     self._ssh_client.connect(hostname=str(self.cfg.ip), username=self.cfg.uname, password=self.cfg.passwd, timeout=15)
                     self.cfg.logger.debug('connected')
             except Exception as ex:
-                self.cfg.logger.error('{}: fail to connect {}'.format(self, ex))
-                raise RuntimeError(ex)
+                self.cfg.logger.error(f'{self}: fail to connect, in paramiko: {type(ex)} {ex}')
+                raise RuntimeError(f'failed to connect to {self}, paramiko error: {ex}')
         return self._ssh_client
 
     def exe_cmds(self, cmds, is_with_tty=False, is_in_background=False):

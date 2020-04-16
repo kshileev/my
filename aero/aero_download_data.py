@@ -117,6 +117,7 @@ def download_world_aero_data():
         urls.append(f'http://worldaerodata.com/nav/{country}.php')
         urls.append(f'http://worldaerodata.com/countries/{country}.php')
 
+    print(f'Taking info from {urls} ....')
     pool = multiprocessing.Pool(processes=20)
     htmls = pool.map(request_get_url, urls)
 

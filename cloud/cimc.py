@@ -13,6 +13,14 @@ class CimcNicPhysical:
         return f'{self.id} {self.status}'
 
 
+class CimcChassis:
+    def __init__(self, full_body):
+        self.body = full_body
+
+    def __repr__(self):
+        return f'change me'
+
+
 class CimcNicVirtual:
     def __init__(self, lst):
         self.id = lst[0]
@@ -27,60 +35,56 @@ class CimcNicVirtual:
         return f'{self.id}@{self.mlom_id}'
 
 
-class CimcInfo:
-    def __init__(self, d):
-        self.d = d
+class CimcCtl:
+    def __init__(self, full_body):
+        self.body = full_body
+
+        d = {y[0]: y[1] for y in [x.strip().split(': ') for x in self.body.split('\r\n') if ':' in x] if len(y) == 2}
+        self.ip4 = d['IPv4 Address']
+        self.ip6 = d['IPv6 SLAAC Address']
+        self.mac = d['MAC Address']
+        self.hostname = d['Hostname']
+        self.serial = d['Serial Number']
+        self.power = d['Power']
 
     def __repr__(self):
-        return f'CimcInfo {self.ip4}'
+        return f'change me'
+
+
+class CimcInfo:
+    def __init__(self, body):
+        self.body = body
+        self._ctl = None
+        self._physical = None
+        self._virtual = None
+
 
     @property
-    def ip4(self):
-        return self.d['cimc']['IPv4 Address']
+    def ctl(self):
+        if not self._ctl:
+            self._ctl = CimcCtl(full_body=self.body)
+        return self._ctl
 
-    @property
-    def slaac(self):
-        return self.d['cimc']['IPv6 SLAAC Address']
-
-    @property
-    def mac(self):
-        return self.d['cimc']['MAC Address']
-
-    @property
-    def hostname(self):
-        return self.d['cimc']['Hostname']
-
-    @property
-    def serial(self):
-        return self.d['cimc']['Serial Number']
-
-    @property
-    def power(self):
-        return self.d['cimc']['Power']
+    def __repr__(self):
+        return f'CimcInfo {self.ctl.ip4}'
 
     @property
     def physical(self):
-        return self.d['nics'][:2]
+        if not self._physical:
+            cards = [x for x in self.body.split('Supported')[1].split('\r\n') if x[0] in ['0', '1', 'e', 't', 's', 'p', 'm']]
+            self._physical = [CimcNicPhysical(x.split()) for x in cards if x[0] in ['0', '1']]
+        return self._physical
 
     @property
     def virtual(self):
-        return self.d['nics'][3]
+        if not self._virtual:
+            cards = [x for x in self.body.split('Supported')[1].split('\r\n') if x[0] in ['0', '1', 'e', 't', 's', 'p', 'm']]
+            self._virtual = [CimcNicVirtual(x.split()) for x in cards if x[0] not in ['0', '1']]
+        return self._virtual
 
-
-class CimcCfg(server.ServerCfg):
-    @classmethod
-    def from_cfg_d(cls, pod_cfg, cfg_d):
-
-        ip = cfg_d.get('ip6') or cfg_d.get('ip4')
-        name = f'{cfg_d["name"]}.cimc'
-        if pod_cfg.name not in name:
-            name = f'{pod_cfg.name}.{name}'
-        cimc_cfg =cls(name=name, ip=ip, uname=cfg_d['uname'], passwd=cfg_d['passwd'])
-        cimc_cfg.serial = cfg_d.get('serial')
-        return cimc_cfg
-
-    def create_server(self, proxy=None):
-        return Cimc(cfg=self, proxy=proxy)
+    @property
+    def macs(self):
+        return [x.mac for x in self.physical + self.virtual] + [self.ctl.mac]
 
 
 class Cimc(server.Server):
@@ -98,27 +102,14 @@ class Cimc(server.Server):
 
         rf_cimc_info = curl.curl_get(url=f'https://[{self.cfg.ip}]/redfish/v1/Managers/CIMC/EthernetInterfaces/NICs', uname=self.cfg.uname, passwd=self.cfg.passwd)
         rf_cards_info = [curl.curl_get(url=f'https://[{self.cfg.ip}]{system_url}/EthernetInterfaces/{card}', uname=self.cfg.uname, passwd=self.cfg.passwd) for card in ['MLOM.0', 'MLOM.1']]
-        return CimcInfo(d={'cimc': rf_cimc_info.json(), 'mlom': [x.json() for x in rf_cards_info]})
+        return CimcInfo(body=rf_cimc_info + rf_cards_info)
 
     def get_info(self):
-        a = self.exe_cmds(['scope cimc/network', 'show detail', 'top', 'scope chassis', 'show detail', 'scope adapter MLOM', 'show ext-eth-if', 'show host-eth-if'])
-        cimc = {y[0]: y[1] for y in [x.strip().split(': ') for x in a.split('\r\n') if ':' in x] if len(y) == 2}
-        cards = [x for x in a.split('Supported')[1].split('\r\n') if x[0] in ['0', '1', 'e', 't', 's', 'p', 'm']]
-        physical = [CimcNicPhysical(x.split()) for x in cards if x[0] in ['0', '1']]
-        virtual = [CimcNicVirtual(x.split()) for x in cards if x[0] not in ['0', '1']]
-        return CimcInfo(d={'cimc': cimc, 'nics': physical + virtual})
-
-
-class CimcsCfg:
-    def __init__(self, pod_cfg):
-        self.cfg_d = pod_cfg.cfg_d['cimc']
-        self.cfgs = [CimcCfg.from_cfg_d(pod_cfg=pod_cfg, cfg_d=x) for x in self.cfg_d]
-
-    def __repr__(self):
-        return f'n={len(self.cfg_d)}'
-
-    def create_them(self, proxy=None):
-        return Cimcs([x.create_server(proxy=proxy) for x in self.cfgs])
+        a = self.exe_cmds(['scope cimc/network', 'show detail', 'top', 'scope chassis', 'show detail', 'show network-adapter', 'show adapter',
+                           'scope adapter MLOM', 'show ext-eth-if', 'show host-eth-if',
+                           'scope adapter 1', 'show ext-eth-if', 'show host-eth-if',
+                           'scope adapter 2', 'show ext-eth-if', 'show host-eth-if'])
+        return CimcInfo(body=a)
 
 
 class Cimcs:
@@ -132,8 +123,8 @@ class Cimcs:
         import multiprocessing
 
         pool = multiprocessing.Pool(processes=10)
-        a = pool.map(pull_get_cimc_info, self.cimcs)
-        for cimc, info in zip(self.cimcs, a):
+        infos = pool.map(pull_get_cimc_info, self.cimcs)
+        for cimc, info in zip(self.cimcs, infos):
             cimc.info = info
 
         new_cfg_d = [{'ip4': x.info.ip4, 'ip6': x.info.slaac, 'name': x.info.hostname, 'uname': x.cfg.uname, 'passwd': x.cfg.passwd, 'serial': x.info.serial} for x in self.cimcs]
