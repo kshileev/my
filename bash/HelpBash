@@ -65,12 +65,30 @@ function kkhelp-vim()
     echo 'vim -c :10d'           delete line 10
     echo '$'			 to end of line
 }
+function kkhelp_if_then()
+{
+    if [ ! -z "$CENTRAL_SETUP_for_UPLOAD" ]; then
+        local_setup=$CENTRAL_SETUP_for_UPLOAD
+        mv CENTRAL_SETUP_for_UPLOAD $local_setup
+    elif [ ! -z "$CENTRAL_SETUP_in_REPO" ]; then
+        if [ ! -d /tmp/mercury_repo ]; then
+            git clone https://cloud-review.cisco.com/mercury/mercury /tmp/mercury_repo
+        fi
+        cd /tmp/mercury_repo
+        git pull
+        cd -
+        cp /tmp/mercury_repo/testbeds/$CENTRAL_SETUP_in_REPO .
+        local_setup=$(echo $CENTRAL_SETUP_in_REPO | cut -d '/' -f2)
+    else
+        error No central setup specified
+    fi
+}
 function kkhelp-bash()
 {
     echo 'virsh list | grep running | cut -d " " -f2,7 | while read id; do [ -n "$id" ] && echo virsh save $id.save; done'
     echo 'while grep resync /proc/mdstat; do echo resync in file; sleep 5; done	# while ("string resync" in file'
 
-    local help_cmd=$(_get_input 'file_path file_status for_loop &&-|| while_loop substring_in_string inifinite_loop')
+    local help_cmd=$(_get_input 'file_path file_status for_loop if1 if2 if3 while_loop substring_in_string inifinite_loop')
     case ${help_cmd} in
          file_path)
             echo '$(dirname /a/b/c) produces:' "$(dirname /a/b/c)"
@@ -80,18 +98,24 @@ function kkhelp-bash()
             echo '[[ -n ~/.bashrc ]] && echo not empty produces:'
             [[ -n ~/.bashrc ]] && echo not empty
 	     ;;
-	     for_loop)
-            echo 'for _ in "p 1" "p 2"; do echo $_ ; done produces:'
-            for _ in "p 1" "p 2"; do echo $_ ; done
-	     ;;
-	     "&&-||")
+	     "if1")
             echo 'git status && echo in repo || echo out of repo produces:'
             git status && echo in repo || echo out of repo
+          ;;
+	     'if2')
+            echo 'if [ -z $Host ]; then echo ok; fi' produces $(if [ -z $Host ]; then echo ok; fi)
+          ;;
+	     'if3')
+            echo '[ "$HOTNAME" == "false" ] && echo ok $HOSTNAME || echo noc $HOTNAME' produces [ "$HOSTNAME" == "false" ] && echo ok $HOSTNAME || echo noc $HOSTNAME
           ;;
          while_loop)
             echo 'ls | while read x; do echo element $x; done produces:'
             ls | while read x; do echo element $x; done
           ;;
+	     for_loop)
+            echo 'for _ in "p 1" "p 2"; do echo $_ ; done produces:'
+            for _ in "p 1" "p 2"; do echo $_ ; done
+	     ;;
          inifinite_loop)
             echo 'while true ; do echo 123 ; done produces infinite loop (WARNING)'
             while true ; do echo 123 ; done

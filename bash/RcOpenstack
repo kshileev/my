@@ -1,22 +1,76 @@
+ssh_cmd='ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+os_cfg_path=$(find -L . -maxdepth 2 -name openrc | xargs grep 'OS_AUTH_URL' -l)
+[[ ! -z $os_cfg_path ]] && source $os_cfg
+
 function kkos_list_nodes()
 {
     nodes=$(openstack host list | grep -E "scheduler|compute" | cut -d "|" -f2)
+    echo Nodes: $nodes
+}
+function kkos_netns()
+{
+    kkos_list_nodes
+    for node in $nodes
+    do
+        echo On node $node
+        $ssh_cmd $node ip netns
+        echo
+    done
 }
 function kkos_collect_logs()
 {
-    local title=$1
-    local log_dir=~/logs/$title
-    local node_log_dir
-
-    [[ -d $log_dir ]] && return
-    ossqe_timestamp
-    ossqe_list_nodes
+    local title=${1:-kir}
+    kk_timestamp
+    local log_dir=~/logs/$title-$timestamp
+    kkos_list_nodes
     for node in $nodes
     do
-        node_log_dir=$last_log_dir/$node
+        node_log_dir=$log_dir/$node
+        echo collecting from $node to $node_log_dir...
         mkdir -p $node_log_dir
         $scp_cmd $node:/var/log/{nova/*,neutron-vpp/*,neutron/*}.log $node_log_dir
     done
+    echo all logs collected in $log_dir
+}
+function kkos_log_for_uuid()
+{
+    local uuid=$1
+    if [ -z $uuid ]; then
+        echo please enter OS UUID
+        return
+    fi
+    echo Going to collect all logs for $uuid...
+    kkos_collect_logs $uuid
+    grep -r $uuid $log_dir > uuid-$uuid.log
+    echo executed by "grep -r $uuid $log_dir > uuid-$uuid.log"
+}
+function kkos_port_trajectory()
+{
+    local uuid=$1
+    if [ -z $uuid ]; then
+        echo please enter port UUID
+        return
+    fi
+    echo Going to collect build trajectory for port $uuid...
+    kkos_collect_logs $uuid
+    grep -r $uuid $log_dir > uuid-$uuid.log
+    echo executed by "grep -r $uuid $log_dir > uuid-$uuid.log"
+}
+function kkos_create_os_objects()
+{
+    openstack flavor create kir-f-1
+    openstack security group create kir-sg-1
+
+    openstack network create kir-n-1
+    openstack subnet create --network kir-n-1 --subnet-range 5.5.5.5/24 kir-sn-1
+
+    openstack router create kir-r-1
+
+    openstack user create kir-u-1
+    openstack project create kir-pr-1
+
+    openstack server create kir-s-1 --flavor kir-f-1 --image RHEL-guest-image --network kir-n-1
+    openstack server create kir-s-2 --flavor kir-f-1 --image RHEL-guest-image --network kir-n-1
 }
 function kkos_problem()
 {
@@ -142,3 +196,4 @@ EOF
 	;;
     esac
 }
+

@@ -82,3 +82,8 @@ function PingNode
    ping -c 1 $1 > /dev/null 2>&1
    [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
 }
+function kk_timestamp()
+{
+    timestamp=$(TZ='Europe/Moscow' date +%d.%h:%H:%M%Z)
+    echo timestamp $timestamp
+}
