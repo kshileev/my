@@ -62,6 +62,18 @@ class TestParser(TestCase):
         if self.file:
             self.file.close()
 
+    def test_nargs(self):
+        def monitoring(value):
+            try:
+                n, v = value.split('_')
+            except (IndexError, ValueError):
+                raise ValueError('value ' + str(value) + ' is not name_value')
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--monitoring', nargs='+', type=monitoring, help='a number of name_value tags')
+        args = parser.parse_args(['--monitoring', 'a2'])
+
+
     def test_simple(self):
         args = parser_file().parse_args(['/etc/hosts', '/etc'])
         self.file = args.file

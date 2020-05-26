@@ -8,7 +8,7 @@ class OpenstackAuth:
         self.openrc_path = body.split(':')[0]
 
 
-class CloudCfg(object):
+class OpenstackCfg(object):
     def __init__(self, name, proxy_server):
         self.cloud_name = name
         self.logger = self.create_logger()
@@ -37,7 +37,7 @@ class CloudCfg(object):
         return cls(name=cloud_name, proxy_server=entry)
 
     def create_cloud_client(self):
-        from cloud.openstack_client import OpenstackClient
+        from cloud.openstack_api import OpenstackClient
 
         ans = self.proxy_server.exe_cmds(cmds='find . -name openrc -exec grep export {} +')
         self.auth = OpenstackAuth(body=ans)

@@ -1,16 +1,27 @@
 from unittest import TestCase
-from datetime import tzinfo, timedelta
+from datetime import tzinfo
 
 
-class MSK(tzinfo):
+class TzLocal(tzinfo):
+    def __init__(self):
+        from datetime import timedelta
+        import time
+
+
+        self.zonedelta = timedelta(seconds = -time.altzone) if time.daylight else timedelta(seconds=-time.timezone)
+        self.name = time.tzname[time.daylight]
+
+    def __repr__(self):
+        return self.name
+
     def utcoffset(self, dt):
-        return timedelta(hours=4)
+        return self.zonedelta
 
     def dst(self, dt):
-        return timedelta(hours=4)
+        return self.zonedelta
 
     def tzname(self, dt):
-        return "MSK"
+        return self.name
 
 
 def seconds_between(sec):
@@ -33,24 +44,51 @@ def convert_12to24(time12):
 
 
 class TestTime(TestCase):
-    def setUp(self):
-        super(TestTime, self).setUp()
-
     def test_convert_12to24(self):
         from datetime import time
 
         for hour in range(24):
-            t = time(hour=hour, minute=0, second=0, tzinfo=MSK())
+            t = time(hour=hour, minute=0, second=0, tzinfo=TzLocal())
             time12 = t.strftime('%I:%M:%S%p')
             time24 = t.strftime('%H:%M:%S')
             self.assertEqual(time24, convert_12to24(time12))
 
     def test_strptime(self):
-        from datetime import datetime
+        from datetime import datetime as dt
 
-        with self.assertRaises(ValueError):  # bug in time zone
-            datetime.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
-            datetime.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
+        dt.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
+        dt.strptime('Wed Nov 23 11:57:13 MSK 2016', '%a %b %d %H:%M:%S %Z %Y')
 
-    def test_seconds_between(self):
-        self.assertEqual(2, seconds_between(1))
+        dt.strptime('22 May 2020 03:51:02.020065', '%d %b %Y %H:%M:%S.%f')
+        dt.strptime('22 May 2020 15:35:43.956719 MSK +0300', '%d %b %Y %H:%M:%S.%f %Z %z')
+
+        self.assertEqual(dt(year=2020, month=5, day=25, hour=3, minute=51, second=2), dt.strptime('25 May 2020 03:51:02 UTC', '%d %b %Y %H:%M:%S %Z'))
+
+
+    def test_datetime_tz(self):
+        from datetime import datetime as dt
+        from datetime import timezone as tz
+        from datetime import timedelta as td
+        import time
+
+        now = dt.now(TzLocal())
+        print(now.strftime('%d %b %Y %H:%M:%S.%f %Z %z'))
+
+        now = dt.now(tz(td(seconds=3600)))
+        print(now.strftime('%d %b %Y %H:%M:%S.%f %Z %z'))
+
+        now = dt.now(tz(td(seconds=3600), name='MY'))
+        print(now.strftime('%d %b %Y %H:%M:%S.%f %Z %z'))
+
+        now = dt.now(tz(td(hours=3, minutes=30), name='MY'))
+        print(now.strftime('%d %b %Y %H:%M:%S.%f %Z %z'))
+
+
+    def test_time_tz(self):
+        import time
+
+        format = '%d %b %Y %H:%M:%S %Z (UTC%z)'
+        now = time.localtime()
+        time_s = time.strftime(format, now)
+        back = time.strptime(time_s, format)
+        print(now, time_s, back)
