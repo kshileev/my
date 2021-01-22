@@ -49,7 +49,7 @@ function kkssh()
       ssh-copy-id $host
     ;;
     add_kir_key)
-      ssh-add ~/Google\ Drive/Kirill/Keys/KirVaio.private
+      ssh-add ~/.ssh/kir.private
       ssh-add $MY/etc/keys/kir_no_secret
     ;;
     erase_offending_key)

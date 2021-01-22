@@ -6,13 +6,11 @@ PS1="\W> "	    #prompt: hostname:dirname>
 
 
 export MY_BASH_DIR=$(cd $(dirname "${BASH_SOURCE:-$0}") && pwd)
-export MY=$(dirname $MY_BASH_DIR)
-echo $MY
 [[ -d $HOME/miniconda3 ]] && export PATH="$HOME/miniconda3/bin:$PATH"
 export MY_USER=kshileev
 export MY_TMP_DIR=/tmp/${MY_USER}
 export MY_VENV_DIR=${HOME}/venv
-export MY_BASH_RC=${MY_DIR}/RcBash
+export MY_BASH_RC=${MY_BASH_DIR}/RcBash
 export MY_VIM_RC=${MY_DIR}/RcVim
 export SYSSCREENRC=${MY_DIR}/RcScreen
 mkdir -p ${MY_TMP_DIR}

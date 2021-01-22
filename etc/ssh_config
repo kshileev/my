@@ -1,0 +1,8 @@
+Host *.mgm*
+	User root
+	StrictHostKeyChecking no
+	UserKnownHostsFile=/dev/null
+Host *.tor*
+	User admin
+	StrictHostKeyChecking no
+	UserKnownHostsFile=/dev/null
