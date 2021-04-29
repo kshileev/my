@@ -145,3 +145,5 @@ function kkold
     xterm -geometry 130x36-5+10    -bg lightyellow   -fg black -title "CORE (no) acc smb ena" -e ssh -S ${WaasSocketFile} kshileev@localhost telnet ${CoreIp} &
     xterm -geometry 130x36-5-10    -bg black         -fg white -title LOCAL &
 }
+
+echo $BASH_SOURCE loaded

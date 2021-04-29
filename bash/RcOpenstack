@@ -1,5 +1,5 @@
 ssh_cmd='ssh -q -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-os_cfg_path=$(find -L . -maxdepth 2 -name openrc | xargs grep 'OS_AUTH_URL' -l)
+os_cfg_path=$(find -L . -maxdepth 2 -name openrc 2>/dev/null | xargs grep 'OS_AUTH_URL' -l)
 [[ ! -z $os_cfg_path ]] && source $os_cfg
 
 function kkos_list_nodes()
@@ -20,8 +20,8 @@ function kkos_netns()
 function kkos_collect_logs()
 {
     local title=${1:-kir}
-    kk_timestamp
-    local log_dir=~/logs/$title-$timestamp
+
+    local log_dir=~/logs/$title-${kktimestamp}
     kkos_list_nodes
     for node in $nodes
     do
@@ -196,4 +196,10 @@ EOF
 	;;
     esac
 }
+function kkhelp-os(){
+    _section openstack
+    echo "openstack server list | grep  -vE '\+|ID' |cut -c 3-38                                                              #find server ids"
+    echo "openstack server list | grep  -vE '\+|ID' |cut -c 3-38 | while read id; do openstack server show $id -f json; done  #list all servers"
+}
 
+echo $BASH_SOURCE loaded

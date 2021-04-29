@@ -1,8 +1,71 @@
-Host *.mgm*
-	User root
-	StrictHostKeyChecking no
-	UserKnownHostsFile=/dev/null
-Host *.tor*
-	User admin
-	StrictHostKeyChecking no
-	UserKnownHostsFile=/dev/null
+Host *
+    ServerAliveInterval 120
+    StrictHostKeyChecking no
+    UserKnownHostsFile=/dev/null
+
+Host jcvim
+    #https://confluence-eng-sjc11.cisco.com/conf/display/VIM/Ubuntu+VM+IPs
+    HostName 172.29.74.97
+    User ubuntu
+
+Host k1.cimc
+    HostName 10.10.192.177
+    User admin
+    ProxyJump jcvim
+
+Host kir
+    HostName 10.194.62.125
+    User cloud-user
+
+Host kir.cm
+    HostName 10.194.62.125
+    Port 2022	
+    User admin
+
+Host kir1
+    HostName 172.20.187.39
+    User ubuntu
+
+Host kir1.cimc
+    HostName 172.20.187.21
+    User admin
+
+Host nico
+    HostName 10.194.62.122
+    User cloud-user
+
+Host tb16
+    HostName 10.84.114.211
+    User cloud-user
+
+Host tb16.cm
+    HostName 10.84.114.211
+    Port 2022
+    User admin
+    	
+
+Host jump
+    Hostname bxb-laas-jump-1.cisco.com
+    User luser
+
+Host k8m
+    HostName 10.1.2.141
+    User luser
+    IdentityFile ~/.ssh/id_ed25519
+    ProxyJump jump
+
+Host swx10
+    HostName swx10stage.mitg-bxb300.cisco.com
+    User luser
+
+Host g7.4
+    HostName 10.23.230.228
+    User root
+
+Host g7.6
+    HostName 2001:420:293:254b:10:23:230:228
+    User root
+
+Host cimc.store
+    HostName 172.29.173.233
+    User kshileev

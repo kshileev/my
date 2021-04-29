@@ -1,0 +1,7 @@
+function hhovs(){
+    echo sudo ovs-vsvtl show                              # how to ovs show
+    echo sudo ovs-vsctl add-br XXX && ip l s dev XXX up   # how to ovs add bridge
+    echo sudo ovs-vsctl del-br XXX                        # how to ovs delete bridge
+}
+
+echo $BASH_SOURCE loaded

@@ -1,7 +1,0 @@
-function kklog()
-{
-    local log_file=$1
-    local log_regex=$2
-    local minutes=$3
-    sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
-}

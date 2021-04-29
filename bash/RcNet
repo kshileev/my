@@ -1,7 +1,6 @@
 function kknet()
 {
-    local net_cmd=$(_get_input 'kkhelp-net sh-kern tcpdump del-nic del-netns')
-    echo ${net_cmd}
+    local net_cmd=$(_get_input 'help sh-kern tcpdump del-nic del-netns')
     case ${net_cmd} in
 
     sh-kern)
@@ -11,16 +10,7 @@ function kknet()
 	echo
 	sudo sysctl -a | grep use_tempaddr
 	;;
-    tcpdump)
-	    ifaces=$(ks_list_of_ifaces)
-	    iface=$(_get_input "${ifaces}")
-	    filter=$(_get_input 'icmp6 dns dhcp')
-	    case ${filter} in
-	        dns) filter='port 53' ;;
-            dhcp) filter='((port 67 or port 68) and (udp[8:1] = 0x1))' ;;
-  	    esac
-	    sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
-	;;
+    tcpdump) kktcpdump ;;
     del-nic)
 	    ip a
 	    local re=$(ksGetInput 'enter re' 'q.*')
@@ -35,6 +25,7 @@ function kknet()
 	        sudo ip net d ${namespace}
 	    done
     ;;
+    help) hhnet ;;
     esac
 }
 function kkipa4()
@@ -71,3 +62,23 @@ subnet 10.0.0.0 netmask 255.255.255.0 {
 }
 EOF
 }
+function hhnet(){
+    local net_cmd=$(_get_input 'ip ss brctl ovs tcpdump cfg')
+    case ${net_cmd} in
+        ip) hhip ;;
+        ss) hhss ;;
+        brctl) hhbrctl ;;
+        ovs) hhovs ;;
+        tcpdump) hhtcpdump ;;
+        cfg) hhnetcfg ;;
+    esac
+}
+function hhbrctl(){
+    echo sudo brctl addif br105 vlan105
+}
+function hhnetcfg(){
+    echo  Fedora                                       Ubuntu
+    echo   /etc/sysconfig/network-scripts/ifcfg-eth0    /etc/network/interfaces
+}
+
+echo $BASH_SOURCE loaded

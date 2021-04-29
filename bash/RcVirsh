@@ -35,3 +35,10 @@ function kkvirsh()
         new-vm) kkvirtvm ;;
     esac
 }
+function hhvirshnet(){
+    echo sudo virsh net-list
+    echo sudo virsh net-destroy net_name
+    echo sudo virsh net-undefine net_name
+}
+
+echo $BASH_SOURCE loaded

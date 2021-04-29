@@ -1,0 +1,17 @@
+function kktcpdump(){
+    local ifaces=$(ks_list_of_ifaces)
+	local iface=$(_get_input "${ifaces}")
+	local filter=$(_get_input 'icmp6 dns dhcp')
+	case ${filter} in
+	        dns) filter='port 53' ;;
+            dhcp) filter='((port 67 or port 68) and (udp[8:1] = 0x1))' ;;
+  	esac
+	sudo tcpdump -n -e -l -i ${iface} ${filter} -vv
+}
+function hhtcpdump(){
+    echo sudo tcpdump -i br0 -vvv -s 1500 '((port 67 or port 68) and (udp[8:1] = 0x1))'  # how to tcpdump dhcp DISCOVER REQUEST INFORM
+    echo sudo tcpdump -n -i br0 -vvv icmp6                                          # v6 neighbours solicitation and advertisiment
+    echo  sudo tcpdump -vv -n -t -i eth0 -c 10     #
+}
+
+echo $BASH_SOURCE loaded

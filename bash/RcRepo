@@ -1,15 +1,18 @@
+alias gd='git diff'
+alias gf='git fetch'
+alias gl='git log'
+alias gp='git pull'
+alias gr='git remote -v'
+alias gs='git status'
+alias gb='git branch -vv'
+alias gc='git checkout -- . && git clean -f'
+
 function kktestrepo()
 {
     cd ~/repo/testrepo
-    local cfg=$(kkinput ls etc/CONFIG*)
-    local tst=$(kkinput ls */job/*_job.py)
+    local cfg=$(ksInput ls etc/CONFIG*)
+    local tst=$(ksInput ls */job/*_job.py)
     alias dtr="cd ~/repo/testrepo &&  docker run -it --name tr --rm -v $PWD:/testrepo cloud-docker.cisco.com/testrepo:3.6.5 easypy $tst -testbed_file $cfg -no_upload -no_mail -xunit -release=local -submitter=kshileev"
-}
-function kkmercury()
-{
-    for host in comp1 comp2 ctl1 ctl2 ; do
-        ssh -t $host vtf ls /run/vpp/cli.sock
-    done
 }
 function kkmercury_collect_logs()
 {
@@ -24,3 +27,5 @@ function mercUploadDiff()
         `grep mgm /etc/hosts`
     done
 }
+
+echo $BASH_SOURCE loaded

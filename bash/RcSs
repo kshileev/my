@@ -1,0 +1,11 @@
+function kkss(){
+    echo ss -tlnp
+    echo netstat -r
+}
+
+function hhss(){
+    echo ss -tlnp
+    echo netstat -r
+}
+
+echo $BASH_SOURCE loaded

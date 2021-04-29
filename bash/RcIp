@@ -1,0 +1,22 @@
+function hhipl(){
+    echo sudo ip l a XXX type dummy      # how to ip add interface
+    echo sudo ip l a link eth0 name XXX type vlan id 2 loose_binding on   # how to ip add vlan interface on eth0
+    echo sudo ip l s XXX up				# how to ip up interface
+    echo sudo ip l d XXX					                                # how to ip delete interface
+    echo sudo ip l s XXX promisc on			                            # how to ip promisc
+    echo sudo ip l s XXX promisc off
+}
+function hhipa(){
+    echo sudo ip -6 a a 2005:1975::1/64 dev eth0	       # how to ip add ipv6
+    echo sudo ip -6 a d 2005:1969::1/64 dev eth0			                    # how to ip remove ipv6
+}
+function hhipr(){
+    echo sudo ip r a 10.0.15.0/28 via 10.30.1.180                            # how to ip add route via ip
+    echo sudo ip r a 10.0.5.1 dev vlan105                                    # how to ip add route to interface
+    echo sudo ip r c default via 10.20.30.40 dev eth0		                # how to ip change default route
+}
+function hhipns(){
+    echo sudo ip net d XXX
+}
+
+echo $BASH_SOURCE loaded

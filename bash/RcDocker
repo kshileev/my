@@ -1,0 +1,4 @@
+
+docker inspect -f "{{ .Mounts }}" ddb7
+
+echo $BASH_SOURCE loaded

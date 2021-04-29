@@ -47,11 +47,11 @@ function _get_input()
     [[ -n ${command} ]] && [[ ${commands} == *${command}* ]] && echo ${command} && return
     local default_command=$(echo ${commands} | cut -d ' ' -f1)
     local input
-    read -p "choose from ${commands} [default=${default_command}]: " input
-    [[ ${commands} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
+    read -p "choices: ${commands} [default=${default_command}]: " input
+    [[ ${commands} != *${input}* ]] && echo Wrong choice: ${input} 1>&2 && return
     echo ${input:-${default_command}}
 }
-function kkinput()
+function ksInput()
 {
     local cmd=$*
     local options=`$cmd`
@@ -65,25 +65,52 @@ function ksAddLineToFileIfNotThere()
 {
     local line=$1
     local file=$2
-    echo $line
     [ -f ${file} ] || touch ${file}
-    grep "${line}" ${file} || echo ${line} >> ${file}
+    grep "${line}" ${file} 1>/dev/null || echo ${line} >> ${file}
 }
 function ksGetInput()
 {
     local text=$1
     local default=$2
     local input
-    read -p "${text} [default=${default}]: " input
+    read -p "ENTER ${text} [default=${default}]: " input
     echo ${input:-${default}}
 }
-function PingNode
+function PingNodeOrExit()
 {
    ping -c 1 $1 > /dev/null 2>&1
-   [ "$?" == "0" ] ||  echo Node \"$1\" is off, aborting...
+   [ "$?" == "0" ] || { echo Node \"$1\" is off, aborting...; exit 1; }
 }
-function kk_timestamp()
+function kktimestamp()
 {
-    timestamp=$(TZ='Europe/Moscow' date +%d.%h:%H:%M%Z)
-    echo timestamp $timestamp
+    echo $(TZ='Europe/Moscow' date +%Z%d.%h%H:%M)
 }
+function cat_files()
+{
+	local dir=$1
+	local files=$2
+	for f in ${files}; do
+		echo -e "\n$dir/$f:"
+		cat ${dir}/${f}
+		echo -e "<----\tend\t----"
+	done
+}
+function ksAllHosts(){
+    grep -E ^Host ~/.ssh/config | grep -v '*' | cut -f2 -d ' '
+}
+function kkopsys(){
+    if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        lsb_release -a
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo MAC
+    elif [[ "$OSTYPE" == "cygwin" ]]; then
+        echo CYGWIN
+    elif [[ "$OSTYPE" == "msys" ]]; then
+        echo MSYS
+    elif [[ "$OSTYPE" == "freebsd"* ]]; then
+        echo BSD
+    else
+        echo UNKNOWN
+    fi
+}
+echo $BASH_SOURCE loaded

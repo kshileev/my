@@ -18,3 +18,5 @@ function ksOvzNewCt
     vzctl start ${ctid}
   done
 }
+
+echo $BASH_SOURCE loaded

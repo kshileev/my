@@ -31,3 +31,5 @@ function ksTailLogAfs
 	tail -F messages yum.log kadmin.log krb2kdc.log krb5libs.log /usr/afs/logs/*Log
     fi
 }
+
+echo $BASH_SOURCE loaded

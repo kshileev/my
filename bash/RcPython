@@ -1,0 +1,46 @@
+export MY_VENV_DIR=${HOME}/venv
+
+alias py='ipython'
+
+function kkvenv()
+{
+    git status || return
+    local dir="$(git rev-parse --show-toplevel)/venv"
+    [ -d ${dir} ] || virtualenv ${dir}
+    . ${dir}/bin/activate
+    pip install -r requirements.txt
+}
+
+function kkconda_new_env()
+{
+#    local name=$(ksGetInput 'conda env name' myenv)
+#    local ver=$(_get_input '3.6 3.7 3.8 3.9')
+#    local cmd="conda create --name $name python=$ver"
+
+    echo Running
+}
+
+function kkconda()
+{
+    local conda_cmd=$(_get_input 'env new')
+    local env_list_cmd="conda env list"
+
+	case ${conda_cmd} in
+	    env) echo; echo Running $env_list_cmd...; $env_list_cmd ;;
+        new) echo; $(kkconda_new_env) ;;
+  	esac
+}
+
+function kkpy()
+{
+    local py_funcs=$(_get_input 'venv conda')
+
+	case ${filter} in
+	    venv) $(kkvenv) ;;
+        conda) $(kkconda) ;;
+  	esac
+}
+
+[[ -d $HOME/miniconda3 ]] && export PATH="$HOME/miniconda3/bin:$PATH"
+
+echo $BASH_SOURCE loaded

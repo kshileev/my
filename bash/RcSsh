@@ -1,52 +1,53 @@
 export X509_USER_CERT=${MY}/KirINFN.pem		#certificate used by globus
 export X509_USER_KEY=${MY}/KirPrivate.pem	#private key for this certificate
+function kkpair()
+{ # Check that ssh private-public is indeed a pair
+    local priv=~/.ssh/kir.private
+    local pub=~/.ssh/kir.public
+    local pub1=$(cat ${pub})
+    local pub2=$(ssh-keygen -yf ${priv})
+    local match
 
-function kk_deploy_key_pair()
-{ # Check that ssh private-public is indeed a pair and deploy them to the given server
-    local what_to_deploy=$1
-    local private=$2
-    local server=$3
-    local user=$4
-    local password=$5
-
-    if [[ ${what_to_deploy} == "-h" ]]; then
-	echo "Usage: $0 [public|private] priv_key_path host user password"
-	return
-    fi
-    [[ -z ${what_to_deploy} ]] && what_to_deploy=public
-    [[ -z ${private} ]] && private=${MY_DIR}/keys/kir_no_secret
-    [[ -z ${server} ]] && server=localhost
-    [[ -z ${user} ]] && user=localadmin
-    [[ -z ${password} ]] && password=ubuntu
-
-    local public=${private}.pub
-    local fingerprint=$(ssh-keygen -lf ${private})
-    local public_value=$(cat ${public})
-    local private_value=$(cat ${private})
-    local public_value_from_private=$(ssh-keygen -yf ${private})
-
-    if [[ ${public_value} = ${public_value_from_private}* ]]; then
-	echo "${public} -> ${fingerprint}"
-	case ${what_to_deploy} in
-	    private) sshpass -p ${password} scp ${private} ${user}@${server}:~/.ssh/id_rsa;;
-	    public) sshpass -p ${password} ssh ${user}@${server} echo ${public_value} >> ~/.ssh/authorized_keys;;
-	esac
-    else
-	echo "${private} and ${public} are not a match!"
-    fi
+	[[ $pub1 = $pub2* ]] && match=match || match='do not match'
+	echo $priv and $pub $match
 }
-function kkssh-tunel()
+function kkfinger()
+{ # private key fingerprint
+    local priv=~/.ssh/kir.private
+
+    local fingerprint=$(ssh-keygen -lf ${priv})
+    echo $priv fingerprint $fingerprint
+}
+function kkremote()
+{ # prepare server $1 for ssh
+    local remote=${1:-aio}
+    local priv=~/.ssh/kir.private
+
+    echo prepare $remote for ssh use...
+    ssh-copy-id $remote
+    scp $priv $remote:.ssh/id_rsa
+    ssh $remote chmod 600 .ssh/id_rsa
+}
+function kktunel()
 {
-    ssh -L 7777:localhost:80 root@g7-2.ssh.mgm
+    local proxy=$(ksInput 'proxy' 'proxy')
+    local remote=$(ksGetInput 'final remote' 'remote')
+    local loc_port=$(ksGetInput 'local port' '7777')
+    local rem_port=$(ksGetInput 'remote port' '443')
+    local cmd=ssh -L $loc_port:localhost:$rem_port $proxy
+
+    echo $cmd
+}
+function hhtunel(){
+    echo ssh -2NfL ip1:8003:ip2:5900 ip2 # How to ssh tunnel [-2 only 2 protocol] [-N don't exec cmd] [-f go background before cmd]
 }
 function kkssh()
 { # manipulate with ssh keys
     echo "operations with ssh, keys, certificates"
-    local ssh_command=${1:-$(_get_input 'add_kir_key erase_offending_key add_ossqe_key tunnel finger deploy_to self-signed-certificate')}
+    local ssh_command=${1:-$(_get_input 'add_kir_key erase_offending_key tunnel finger deploy_to self_signed_cert')}
     case ${ssh_command} in
     deploy-to)
-      local host=$(_get_input 'add_kir_key add_ossqe_key finger deploy_to self-signed-certificate')
-      ssh-copy-id $host
+      kk_deploy_key_pair
     ;;
     add_kir_key)
       ssh-add ~/.ssh/kir.private
@@ -55,9 +56,6 @@ function kkssh()
     erase_offending_key)
       read -p "enter offending key: " offending_key
       ssh-keygen -R $offending_key
-    ;;
-    add_ossqe_key)
-      curl -s https://wwwin-gitlab-sjc.cisco.com/mercury/configs/raw/master/private.key -o OsSqeUser && chmod 400 OsSqeUser && ssh-add OsSqeUser && chmod 600 OsSqeUser && rm OsSqeUser
     ;;
     pair-cert)
 	echo Operations with p12 and pem public-private pairs
@@ -70,14 +68,25 @@ function kkssh()
         echo ${Public} and ${Private}
         [ "$out1" == "$out2" ] && echo "are pair" || echo "are NOT pair"
     ;;
-    finger)
-      ssh-add -l -E md5
-    ;;
-    self-signed-certificate)
-      openssl req -x509 -newkey rsa:4096 -keyout KirSelfSignedCertKey.pem -out KirSelfSignedCert.pem -days 365
-    ;;
-    tunnel)
-      kkssh-tunel
-    ;;
+    finger) kkfinger ;;
+    self_signed_cert) kkcert ;;
+    tunnel) kktunnel ;;
     esac
 }
+
+function hhssh() {
+    echo sshpass -p default ssh admin@172.18.6.40                                   # how to sshpass
+    echo ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no user@ip    # how to ssh without new host questions
+    echo ssh-keygen -R hostname
+}
+
+function kkcert() {
+    openssl req -x509 -newkey rsa:4096 -days 365 -keyout KirSelfSignedCertKey.key -out KirSelfSignedCert.crt
+}
+
+function kkfinger() {
+    ssh-add -l -E md5
+}
+
+
+echo $BASH_SOURCE loaded
