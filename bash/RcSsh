@@ -30,7 +30,7 @@ function kkremote()
 }
 function kktunel()
 {
-    local proxy=$(ksInput 'proxy' 'proxy')
+    local proxy=$(kk_input_from_cmd 'proxy' 'proxy')
     local remote=$(ksGetInput 'final remote' 'remote')
     local loc_port=$(ksGetInput 'local port' '7777')
     local rem_port=$(ksGetInput 'remote port' '443')

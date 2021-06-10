@@ -1,4 +1,7 @@
 
-docker inspect -f "{{ .Mounts }}" ddb7
+function kk_docker_mount() {
+    docker inspect -f "{{ .Mounts }}" ddb7
+}
+
 
 echo $BASH_SOURCE loaded

@@ -51,17 +51,17 @@ function _get_input()
     [[ ${commands} != *${input}* ]] && echo Wrong choice: ${input} 1>&2 && return
     echo ${input:-${default_command}}
 }
-function ksInput()
-{
+function kk_input_from_exe()
+{   # exe command and divide output by space
     local cmd=$*
     local options=`$cmd`
     local default=`echo $options | cut -d " " -f1`
     local input
-    read -p "choose from ${options} [default=${default}]: " input
+    read -p "choose from: ${options} [default=${default}]: " input
     [[ ${options} != *${input}* ]] && echo Wrong command ${input} 1>&2 && return
     echo ${input:-${default}}
 }
-function ksAddLineToFileIfNotThere()
+function kk_add_line_once()
 {
     local line=$1
     local file=$2
@@ -76,12 +76,12 @@ function ksGetInput()
     read -p "ENTER ${text} [default=${default}]: " input
     echo ${input:-${default}}
 }
-function PingNodeOrExit()
+function kk_exit_no_ping()
 {
    ping -c 1 $1 > /dev/null 2>&1
    [ "$?" == "0" ] || { echo Node \"$1\" is off, aborting...; exit 1; }
 }
-function kktimestamp()
+function kk_timestamp()
 {
     echo $(TZ='Europe/Moscow' date +%Z%d.%h%H:%M)
 }
@@ -95,10 +95,10 @@ function cat_files()
 		echo -e "<----\tend\t----"
 	done
 }
-function ksAllHosts(){
+function kk_ssh_config_host(){
     grep -E ^Host ~/.ssh/config | grep -v '*' | cut -f2 -d ' '
 }
-function kkopsys(){
+function kk_os_check(){
     if [[ "$OSTYPE" == "linux-gnu" ]]; then
         lsb_release -a
     elif [[ "$OSTYPE" == "darwin"* ]]; then

@@ -5,7 +5,7 @@ function ksIntallKernel2Remote
     echo Install new kernel
     ls configs/
     local Node=$(ksGetInput 'remote node name' 'tom')
-    PingNodeOrExit ${Node}
+    kk_exit_no_ping ${Node}
     local Arch=$(_get_input 'x86_64 i386')
     local Conf=$(_get_input '.config')
     [ -z "$Conf" ] || cp configs/${Conf} .config

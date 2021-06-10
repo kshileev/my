@@ -53,4 +53,4 @@ source ${MY_BASH_DIR}/RcDocker
 source ${MY_BASH_DIR}/RcK8s
 echo All scripts loaded
 
-ksAddLineToFileIfNotThere "[ -f ${MY_BASH_DIR}/bash ] && . ${MY_BASH_DIR}/bash" ~/.bashrc
+kk_add_line_once "[ -f ${MY_BASH_DIR}/bash ] && . ${MY_BASH_DIR}/bash" ~/.bashrc

@@ -10,8 +10,8 @@ alias gc='git checkout -- . && git clean -f'
 function kktestrepo()
 {
     cd ~/repo/testrepo
-    local cfg=$(ksInput ls etc/CONFIG*)
-    local tst=$(ksInput ls */job/*_job.py)
+    local cfg=$(kk_input_from_exe ls etc/CONFIG*)
+    local tst=$(kk_input_from_exe ls */job/*_job.py)
     alias dtr="cd ~/repo/testrepo &&  docker run -it --name tr --rm -v $PWD:/testrepo cloud-docker.cisco.com/testrepo:3.6.5 easypy $tst -testbed_file $cfg -no_upload -no_mail -xunit -release=local -submitter=kshileev"
 }
 function kkmercury_collect_logs()

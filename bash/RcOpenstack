@@ -21,7 +21,7 @@ function kkos_collect_logs()
 {
     local title=${1:-kir}
 
-    local log_dir=~/logs/$title-${kktimestamp}
+    local log_dir=~/logs/$title-${kk_timestamp}
     kkos_list_nodes
     for node in $nodes
     do
