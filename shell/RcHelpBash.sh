@@ -132,10 +132,10 @@ function kkhelp-watch()
     _section watch
     echo watch -d -n 5 ip a    # re-run ip a every 5 secs and highlight difference
 }
-function kkhelp() {
-    local help_cmd=$(_get_input 'bash os ps grep rmp-dpkg cscope kernel mount')
+function 9help() {
+    local help_cmd=$(_get_input 'my.sh os ps grep rmp-dpkg cscope kernel mount')
     case ${help_cmd} in
-         bash) kkhelp-bash ;;
+         my.sh) kkhelp-bash ;;
          os) kkhelp-os ;;
          grep) kkhelp-grep ;;
     esac

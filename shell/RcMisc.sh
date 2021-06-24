@@ -1,89 +1,34 @@
-export SYSSCREENRC=${MY_DIR}/RcScreen
-export LESSHISTFILE=${MY_TMP_DIR}/LessHist
-
 function kklog()
 {
     local log_file=$1
     local log_regex=$2
     local minutes=$3
-    sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" $log_file | grep -i $log_regex
+    sed -n "/^$(date +%Y-%m-%d\ %H:%M --date="$minutes min ago")/, /^$(date +%Y-%m-%d\ %H:%M)/p" "$log_file" | grep -i "$log_regex"
 }
-function kkntp
-{
-    echo Creating ntp config in /etc/ntp.conf
-    cat > /etc/ntp.conf <<EOF
-driftfile /var/lib/ntp/drift
 
-restrict default kod nomodify notrap nopeer noquery
-restrict -6 default kod nomodify notrap nopeer noquery
-
-restrict 127.0.0.1
-restrict -6 ::1
-
-server dn11.kirshil.ru
-
-includefile /etc/ntp/crypto/pw
-
-keys /etc/ntp/keys
-EOF
-}
 function kksystem
 { # we're running on deb based or rpm based OS?
   local deb=/etc/debian_version
   local rpm=/etc/redhat-release
   [ -f ${deb} ] && { echo -n "It's DEBIAN version: " ; cat ${deb}; return 1; }
-  [ -f ${rpm} ] && { echo -n "It's RPM version: "    ; cat ${rpm}; return -1; }
-}
-function kkinit()
-{
-    local my_env_command=$(_get_input 'local remote update' $1)
-    case ${my_env_command} in
-    local)
-	[ -L ~/.vimrc ] || ln -s ${MY_VIM_RC} ~/.vimrc
-	;;
-    remote)
-	grep -v ^127 /etc/hosts | grep ^[1-2]
-	local Node=$(ksGetInput 'Choose node where to deploy' 'NoNode')
-	echo "Deploing to ${Node}:"
-	scp -p ${MY_BASH_RC} ~/.bash_profile ${MY_VIM_RC} localadmin@${Node}:
-	;;
-    update)
-	cd ${MY_DIR}
-	git pull
-	;;
-    esac
-}
-function kkalias()
-{
-    echo Defines aliases
-    alias di='docker images -a'
-    alias dp='docker ps -a'
-
-    alias pw="ps uxwf"
-    alias sslt='ps auxw |grep ssh |grep -v grep'
-    alias kki="python $MY_DIR/py/cipher.py -s"
-    #alias   0RpmBld32='rpmbuild --nodeps --target=i386 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
-    #alias   0RpmBld64='rpmbuild --nodeps --target=x86_64 --define "_sourcedir $PWD" --define "_builddir $HOME/bld"'
-    #alias   0RpmBld='rpmbuild --define "_sourcedir $PWD" --define "_builddir $PWD" --define "_rpmdir $HOME"'
-    #alias   0vztc='echo "BASE<<4+1"; cat /var/run/vz_tc_base; cat /var/run/vz_tc_classes; tc filter show dev eth0 parent 2:'
-    #alias   0vzl='vzlist -a -o ctid,hostname,ip,numproc,ostemplate'
-    #alias   0vzst='vzctl set 101 --hostname changename '
+  [ -f ${rpm} ] && { echo -n "It's RPM version: "    ; cat ${rpm}; return 2; }
 }
 function kkrepo()
 {
-    local repo=$(_get_input 'os-sqe rally devstack tempest cisco-networking cisco-kloudbuster barracuda ovzctl ovzkernel')
-    case ${repo} in
-	rally) git clone https://git.openstack.org/openstack/rally;;
-	devstack) git clone https://github.com/openstack-dev/devstack.git;;
-	tempest) git clone https://github.com/openstack/tempest.git;;
-	os-sqe) git clone https://github.com/CiscoSystems/os-sqe.git sqe;;
-	cisco-nvfbench) git clone http://gitlab.cisco.com/openstack-perf/nfvbench.git;;
-	cisco-kloudbuster) https://github.com/openstack/kloudbuster.git kloud;;
+  local repo
+  repo=$(_get_input 'os-sqe rally devstack tempest cisco-networking cisco-kloudbuster barracuda ovzctl ovzkernel')
+  case ${repo} in
+	  rally) git clone https://git.openstack.org/openstack/rally;;
+	  devstack) git clone https://github.com/openstack-dev/devstack.git;;
+	  tempest) git clone https://github.com/openstack/tempest.git;;
+	  os-sqe) git clone https://github.com/CiscoSystems/os-sqe.git sqe;;
+	  cisco-nvfbench) git clone http://gitlab.cisco.com/openstack-perf/nfvbench.git;;
+	  cisco-kloudbuster) https://github.com/openstack/kloudbuster.git kloud;;
     cisco-networking) https://git.openstack.org/openstack/networking-cisco netcis;;
-	ovzctl) git clone git://git.openvz.org/pub/vzctl $HOME/vz/ovzctl ;;
-	ovzkernel) git clone  git://git.openvz.org/pub/linux-2.6.18-openvz $HOME/vz/18-ovz ;;
-	my) git clone git@github.com:kshileev/my.git ;;
-    esac
+	  ovzctl) git clone git://git.openvz.org/pub/vzctl "$HOME"/vz/ovzctl ;;
+	  ovzkernel) git clone  git://git.openvz.org/pub/linux-2.6.18-openvz "$HOME"/vz/18-ovz ;;
+	  my) git clone git@github.com:kshileev/my.git ;;
+  esac
 }
 function kkelk()
 {
@@ -108,15 +53,15 @@ function kkps()
 {
     local name=$1
     local pid=$2
-    ps -C ${name} -o user,pid,ppid,cmd
-    [[ -n ${pid} ]] && ps -p ${pid} -o user,pid,ppid,cmd
+    ps -C "${name}" -o user,pid,ppid,cmd
+    [[ -n ${pid} ]] && ps -p "${pid}" -o user,pid,ppid,cmd
 }
-function kkinfo()
-{   # shows useful info about unknown command provided as argument
+function kkinfo(){   # shows useful info about unknown command provided as argument
     local cmd_name=$1
-    local cmd_full_path=`which ${cmd_name}`
-    file ${cmd_full_path}
-    dpkg -S ${cmd_full_path}
+    local cmd_full_path
+    cmd_full_path=$(which "${cmd_name}")
+    file "${cmd_full_path}"
+    dpkg -S "${cmd_full_path}"
 }
 function kkmorze()
 {

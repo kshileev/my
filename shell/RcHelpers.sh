@@ -40,7 +40,7 @@ function _section()
 {
     printf "\n%-10s %0100s\n" $1
 }
-function _get_input()
+function kk_input_from_list()
 {
     local commands=$1
     local command=$2
@@ -67,14 +67,6 @@ function kk_add_line_once()
     local file=$2
     [ -f ${file} ] || touch ${file}
     grep "${line}" ${file} 1>/dev/null || echo ${line} >> ${file}
-}
-function ksGetInput()
-{
-    local text=$1
-    local default=$2
-    local input
-    read -p "ENTER ${text} [default=${default}]: " input
-    echo ${input:-${default}}
 }
 function kk_exit_no_ping()
 {

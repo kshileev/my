@@ -3,9 +3,9 @@ export MY_CSCOPE_FILE_LIST=${MY_CSCOPE_DIR}/cscope.files	#file to list files to 
 export DISTCC_HOSTS='1.1.1.1 2.2.2.2 3.3.3.3'	#used by make -j
 export ARTISTIC_STYLE_OPTIONS=${MY_DIR}/RcAstyle
 
-alias fk="find . -name \"*.${MY_USER}\""
+alias fk="find . -name \"*.${USER}\""
 alias grc='find . -name "*.[ch]pp" -o -name "*.[ch]" | xargs grep'
-alias gdi="gendiff . .${MY_USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
+alias gdi="gendiff . .${USER} > ~/${MY_USER}.diff-xx-xxxx-`date +%Y%m%d`"
 alias pt="patch -p1 -b -z .${USER}"
 alias   0m64='make -j32 CC=distcc ARCH=x86_64'
 alias   0mod="gcc -c -Wall -nostdinc -I/usr/src/linux/include"
@@ -117,5 +117,3 @@ function kkgrepc
     [ -z "$1" ] && echo Usage $FUNCNAME symbol || echo $1 a\is in :
     find . -name *.[ch]pp | xargs grep $1
 }
-
-echo $BASH_SOURCE loaded
