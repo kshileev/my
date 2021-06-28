@@ -2,13 +2,13 @@
 # shell Non-log shell: execute ~/.bashrc only
 # shell Non-interactive shell: execute script pointed by $ENV, nothing if $ENV = ""
 
-THIS_FILE_PATH=$(find ~/repo ~/.kir  -name my.sh 2>/dev/null)
+THIS_FILE_PATH=$(find ~/repo ~/.kir -name my.sh 2>/dev/null)
 MY_SHELL_DIR=$(dirname "$THIS_FILE_PATH")
 export MY_TMP_DIR=/tmp/${USER}
 export TZ='Europe/Moscow'
 mkdir -p "${MY_TMP_DIR}"
 
-[[ "$SHELL" == *zsh ]] && PROMPT='%F{green}%2~%f ' || PS1="\W "
+[[ "$SHELL" == *zsh ]] && PROMPT='%F{green}%2~%f '
 [[ "$SHELL" == *zsh ]] && ln -fs "$THIS_FILE_PATH" ~/.zshrc || ln -fs "$THIS_FILE_PATH" ~/.bash_aliases
 [[ "$SHELL" == *zsh ]] && alias src=". ~/.zshrc" || alias src=". ~/.bash_aliases"
 
@@ -45,12 +45,17 @@ function 1init()  { # deploy starting my.sh scripts
 	host=$(0read 'Choose remote for deploy' 'NoNode')
 	echo "Deploying to ${host}:"
 	ssh-copy-id "$host"
+	ssh "${host}" rm -rf .kir
 	scp -r "${MY_SHELL_DIR}" "${host}":.kir
-	ssh "${host}" .kir/my.sh
+	scp "${MY_SHELL_DIR}/../cnUPF/RcUpf.sh"  "${host}":.kir/
+	ssh "${host}" . .kir/my.sh
+	ssh "${host}"
 }
 
 0script_exe RcK8.sh
+0script_exe RcHelm.sh
 0script_exe RcMisc.sh
+0script_exe RcUpf.sh
 
 #source ${MY_BASH_DIR}/RcNet
 #source ${MY_BASH_DIR}/RcIp
@@ -67,7 +72,6 @@ function 1init()  { # deploy starting my.sh scripts
 #source ${MY_BASH_DIR}/RcKernel
 #source ${MY_BASH_DIR}/RcAfs
 #source ${MY_BASH_DIR}/RcDocker
-#source ${MY_BASH_DIR}/RcHelm.sh
 
 
 # kk_add_line_once "[ -f ${MY_BASH_DIR}/bash ] && . ${MY_BASH_DIR}/bash" ~/.bashrc
